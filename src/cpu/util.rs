@@ -117,3 +117,15 @@ pub fn combine(reg_left: u8, reg_right: u8) -> u16 {
     let lo = reg_right as u16;
     hi | lo
 }
+
+pub fn add_relative(n: u16, r: i8) -> u16 {
+    n.wrapping_add(r as u16)
+}
+
+pub fn check_carry_relative(n: u16, r: i8) -> bool {
+    add_relative(n, r) > 0xFF
+}
+
+pub fn check_half_carry_relative(n: u16, r: i8) -> bool {
+    add_relative(n & 0x0F, r & 0x0F) > 0x0F
+}

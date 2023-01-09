@@ -1,6 +1,7 @@
 use core::panic;
 
 use crate::bus::Bus;
+use crate::cpu::util::add_relative;
 
 use super::instruction::ConditionType;
 use super::instruction::InstructionType;
@@ -9,6 +10,8 @@ use super::instruction::RegisterType;
 use super::registers::CpuRegisters;
 use super::registers::Flags;
 
+use super::util::check_carry_relative;
+use super::util::check_half_carry_relative;
 use super::util::DestinationEnum;
 use super::util::FetchedData;
 use super::util::ValueEnum;
@@ -68,15 +71,23 @@ impl<'a> CpuContext<'a> {
     }
 
     fn interrupt_handle(&mut self, address: u16) {
-        self.stack_push16(self.cpu_registers.pc);
+        // Do not count the CPU ticks during interrupts!
+        // self.stack_push16(self.cpu_registers.pc);
+        self.cpu_registers.sp -= 1;
+        self.bus
+            .bus_write8(self.cpu_registers.sp, (self.cpu_registers.pc >> 8) as u8);
+        self.cpu_registers.sp -= 1;
+        self.bus
+            .bus_write8(self.cpu_registers.sp, self.cpu_registers.pc as u8);
         self.cpu_registers.pc = address;
     }
 
     fn cpu_handle_interrupts(&mut self) {
         let interrupt_flags = self.get_interrupt_flags_register();
+
         let interrupt_enable = self.get_interrupt_enable_register();
 
-        let allowed_interrupts = interrupt_flags & interrupt_enable & 0x1F;
+        let allowed_interrupts = interrupt_flags & interrupt_enable;
 
         if allowed_interrupts == 0 {
             return;
@@ -97,6 +108,7 @@ impl<'a> CpuContext<'a> {
 
         // reset in interrupt_flags bit
         self.set_interrupt_flags_register(interrupt_flags & !(interrupt_type as u8));
+        self.halted = false;
         self.interrupt_master_enabled = false;
     }
 
@@ -338,14 +350,16 @@ impl<'a> CpuContext<'a> {
                     unimplemented!();
                 }
                 // only used in 0xF9 LD HL,SP+r8 (should set the H and C flags)
-                let signed_data = self.get_next_pc_value() as i16;
-                let sp_value: i16 = self.cpu_registers.sp as i16;
+                let signed_data = self.get_next_pc_value() as i8;
+                let sp_value = self.cpu_registers.sp;
 
-                let h = (sp_value & 0x0F) + (signed_data & 0x0F) > 0x0F;
-                let c = (sp_value & 0xFF) + (signed_data & 0xFF) > 0xFF;
+                let value = add_relative(sp_value, signed_data);
+
+                let h = check_half_carry_relative(sp_value, signed_data);
+                let c = check_carry_relative(sp_value, signed_data);
+
                 self.cpu_registers
                     .set_flags(Some(false), Some(false), Some(h), Some(c));
-                let value = (sp_value + signed_data) as u16;
                 ValueEnum::Data16(value)
             }
         }
@@ -534,9 +548,10 @@ impl<'a> CpuContext<'a> {
                     }
 
                     z = Some(false);
-                    h = Some(((self.cpu_registers.sp as i16) & 0x0F) + ((r8 as i16) & 0x0F) > 0x0F);
-                    c = Some((self.cpu_registers.sp as i16) + (r8 as i16) > 0xFF);
-                    self.cpu_registers.sp = ((self.cpu_registers.sp as i16) + (r8 as i16)) as u16;
+
+                    h = Some(check_half_carry_relative(self.cpu_registers.sp, r8));
+                    c = Some(check_carry_relative(self.cpu_registers.sp, r8));
+                    self.cpu_registers.sp = add_relative(self.cpu_registers.sp, r8);
 
                     self.emu_cycles(1);
                 }
@@ -614,7 +629,7 @@ impl<'a> CpuContext<'a> {
 
     fn process_jr(&mut self) {
         if let ValueEnum::SignedData8(relative) = self.fetched_data.source {
-            let address = ((self.cpu_registers.pc as i16) + relative as i16) as u16;
+            let address = add_relative(self.cpu_registers.pc, relative);
             self.goto_address(address, false);
         } else {
             panic!("process_jr only accepts SignedData8");
@@ -1036,6 +1051,7 @@ const REGISTERS_LOOKUP: [RegisterType; 8] = [
     RegisterType::A,
 ];
 
+#[derive(PartialEq, Debug)]
 pub enum InterruptType {
     VBLANK = 1,
     LCDStat = 2,

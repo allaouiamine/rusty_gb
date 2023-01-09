@@ -679,6 +679,8 @@ impl InstructionSet {
             Operand::Register(RegisterType::L),
         );
 
+        instructions[0x76] = Instruction::instruction_no_operands("HALT", InstructionType::HALT);
+
         instructions[0x77] = Instruction::instruction_2_operands(
             "LD (HL),A",
             InstructionType::LD,
