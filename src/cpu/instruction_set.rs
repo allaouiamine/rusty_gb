@@ -1230,7 +1230,7 @@ impl InstructionSet {
         instructions[0xF2] = Instruction::instruction_2_operands(
             "LD A,(C)",
             InstructionType::LD,
-            Operand::Register(RegisterType::HL),
+            Operand::Register(RegisterType::A),
             Operand::Indirect(RegisterType::C),
         );
 
