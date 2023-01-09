@@ -210,8 +210,11 @@ impl<'a> CpuContext<'a> {
             | InstructionType::SBC => {
                 self.fetch_data_2_operands();
             }
-            _ => {
-                unimplemented!();
+            other => {
+                panic!(
+                    "unimplemented instruction: {}, opcode: {:02X}",
+                    other, self.current_opcode
+                );
             }
         }
     }
