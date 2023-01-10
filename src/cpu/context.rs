@@ -183,16 +183,19 @@ impl<'a> CpuContext<'a> {
         match self.current_instruction.instruction_type {
             InstructionType::NOP
             | InstructionType::HALT
+            | InstructionType::STOP
             | InstructionType::DI
             | InstructionType::EI
             | InstructionType::RET
             | InstructionType::RETI
             | InstructionType::RST
             | InstructionType::RRA
+            | InstructionType::RLA
             | InstructionType::CPL
             | InstructionType::SCF
             | InstructionType::CCF
             | InstructionType::RLCA
+            | InstructionType::RRCA
             | InstructionType::DAA => {}
             InstructionType::JP
             | InstructionType::JR
@@ -463,6 +466,9 @@ impl<'a> CpuContext<'a> {
         match self.current_instruction.instruction_type {
             InstructionType::NONE => self.process_none(),
             InstructionType::NOP => self.process_nop(),
+            InstructionType::STOP => {
+                panic!("Stopping!");
+            }
 
             //InstructionType::LD | InstructionType::LDH => self.process_ld(),
             InstructionType::LD => self.process_ld(),
@@ -488,10 +494,12 @@ impl<'a> CpuContext<'a> {
 
             InstructionType::CB => self.process_cb(),
             InstructionType::RRA => self.process_rra(),
+            InstructionType::RLA => self.process_rla(),
             InstructionType::CPL => self.process_cpl(),
             InstructionType::SCF => self.process_scf(),
             InstructionType::CCF => self.process_ccf(),
             InstructionType::RLCA => self.process_rlca(),
+            InstructionType::RRCA => self.process_rrca(),
 
             InstructionType::DAA => self.process_daa(),
 
@@ -1026,6 +1034,18 @@ impl<'a> CpuContext<'a> {
         self.cpu_registers.a = result;
     }
 
+    fn process_rla(&mut self) {
+        let carry_flag: u8 = if self.cpu_registers.f.get_flag(Flags::C) {
+            1
+        } else {
+            0
+        };
+        let c = (self.cpu_registers.a >> 7) & 1;
+        self.cpu_registers.a = (self.cpu_registers.a << 1) | carry_flag;
+        self.cpu_registers
+            .set_flags(Some(false), Some(false), Some(false), Some(c == 1));
+    }
+
     fn process_cpl(&mut self) {
         self.cpu_registers.a = self.cpu_registers.a ^ 0xFF;
         self.cpu_registers
@@ -1049,6 +1069,13 @@ impl<'a> CpuContext<'a> {
     fn process_rlca(&mut self) {
         let carry = (self.cpu_registers.a >> 7) & 1;
         self.cpu_registers.a = (self.cpu_registers.a << 1) | carry;
+        self.cpu_registers
+            .set_flags(None, None, None, Some(carry == 1));
+    }
+
+    fn process_rrca(&mut self) {
+        let carry = self.cpu_registers.a & 1;
+        self.cpu_registers.a = (self.cpu_registers.a >> 1) | (carry << 7);
         self.cpu_registers
             .set_flags(None, None, None, Some(carry == 1));
     }

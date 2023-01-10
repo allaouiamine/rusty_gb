@@ -109,6 +109,9 @@ impl InstructionSet {
             Operand::D8,
         );
 
+        instructions[0x0F] = Instruction::instruction_no_operands("RRCA", InstructionType::RRCA);
+
+        instructions[0x10] = Instruction::instruction_no_operands("STOP", InstructionType::STOP);
         instructions[0x11] = Instruction::instruction_2_operands(
             "LD DE,d16",
             InstructionType::LD,
@@ -146,6 +149,8 @@ impl InstructionSet {
             Operand::Register(RegisterType::D),
             Operand::D8,
         );
+
+        instructions[0x17] = Instruction::instruction_no_operands("RLA", InstructionType::RLA);
 
         instructions[0x18] =
             Instruction::instruction_1_operand("JR r8", InstructionType::JR, Operand::R8);
