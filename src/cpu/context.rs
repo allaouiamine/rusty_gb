@@ -186,7 +186,13 @@ impl<'a> CpuContext<'a> {
             | InstructionType::DI
             | InstructionType::EI
             | InstructionType::RET
+            | InstructionType::RETI
+            | InstructionType::RST
             | InstructionType::RRA
+            | InstructionType::CPL
+            | InstructionType::SCF
+            | InstructionType::CCF
+            | InstructionType::RLCA
             | InstructionType::DAA => {}
             InstructionType::JP
             | InstructionType::JR
@@ -464,10 +470,13 @@ impl<'a> CpuContext<'a> {
             InstructionType::ADD => self.process_add(),
             InstructionType::ADC => self.process_adc(),
             InstructionType::SUB => self.process_sub(),
+            InstructionType::SBC => self.process_sbc(),
+            InstructionType::RST => self.process_rst(),
             InstructionType::JP => self.process_jp(),
             InstructionType::JR => self.process_jr(),
             InstructionType::CALL => self.process_call(),
             InstructionType::RET => self.process_ret(),
+            InstructionType::RETI => self.process_reti(),
             InstructionType::INC => self.process_inc(),
             InstructionType::DEC => self.process_dec(),
             InstructionType::PUSH => self.process_push(),
@@ -479,6 +488,10 @@ impl<'a> CpuContext<'a> {
 
             InstructionType::CB => self.process_cb(),
             InstructionType::RRA => self.process_rra(),
+            InstructionType::CPL => self.process_cpl(),
+            InstructionType::SCF => self.process_scf(),
+            InstructionType::CCF => self.process_ccf(),
+            InstructionType::RLCA => self.process_rlca(),
 
             InstructionType::DAA => self.process_daa(),
 
@@ -595,6 +608,34 @@ impl<'a> CpuContext<'a> {
         self.cpu_registers.set_flags(z, Some(false), h, c);
     }
 
+    fn process_sbc(&mut self) {
+        if let DestinationEnum::Register(register_type) = self.fetched_data.destination {
+            if register_type != RegisterType::A {
+                unimplemented!();
+            }
+
+            if let ValueEnum::Data8(value) = self.fetched_data.source {
+                let carry = if self.cpu_registers.f.get_flag(Flags::C) {
+                    1
+                } else {
+                    0
+                };
+                let result = self.cpu_registers.a - value - carry;
+
+                let h = (self.cpu_registers.a & 0x0F) < (value & 0x0F) + carry;
+                let c = self.cpu_registers.a.checked_sub(value + carry).is_none();
+
+                self.cpu_registers
+                    .set_flags(Some(result == 0), Some(true), Some(h), Some(c));
+                self.cpu_registers.a = result;
+            } else {
+                unimplemented!()
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+
     fn process_sub(&mut self) {
         if let ValueEnum::Data8(value) = self.fetched_data.source {
             let diff = self.cpu_registers.a - value;
@@ -619,6 +660,14 @@ impl<'a> CpuContext<'a> {
             }
             self.cpu_registers.pc = address;
             self.emu_cycles(1);
+        }
+    }
+
+    fn process_rst(&mut self) {
+        if let Some(parameter) = self.current_instruction.parameter {
+            self.goto_address(parameter as u16, false);
+        } else {
+            unimplemented!();
         }
     }
 
@@ -660,6 +709,11 @@ impl<'a> CpuContext<'a> {
             let address = self.stack_pop16();
             self.goto_address(address, false);
         }
+    }
+
+    fn process_reti(&mut self) {
+        self.interrupt_master_enabled = true;
+        self.process_ret();
     }
 
     fn process_push(&mut self) {
@@ -970,6 +1024,33 @@ impl<'a> CpuContext<'a> {
             Some(self.cpu_registers.a & 1 == 1),
         );
         self.cpu_registers.a = result;
+    }
+
+    fn process_cpl(&mut self) {
+        self.cpu_registers.a = self.cpu_registers.a ^ 0xFF;
+        self.cpu_registers
+            .set_flags(None, Some(true), Some(true), None)
+    }
+
+    fn process_scf(&mut self) {
+        self.cpu_registers
+            .set_flags(None, Some(false), Some(false), Some(true));
+    }
+
+    fn process_ccf(&mut self) {
+        self.cpu_registers.set_flags(
+            None,
+            Some(false),
+            Some(false),
+            Some(!self.cpu_registers.f.get_flag(Flags::C)),
+        );
+    }
+
+    fn process_rlca(&mut self) {
+        let carry = (self.cpu_registers.a >> 7) & 1;
+        self.cpu_registers.a = (self.cpu_registers.a << 1) | carry;
+        self.cpu_registers
+            .set_flags(None, None, None, Some(carry == 1));
     }
 
     fn process_adc(&mut self) {

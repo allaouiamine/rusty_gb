@@ -61,6 +61,8 @@ impl InstructionSet {
             Operand::D8,
         );
 
+        instructions[0x07] = Instruction::instruction_no_operands("RLCA", InstructionType::RLCA);
+
         instructions[0x08] = Instruction::instruction_2_operands(
             "LD (a16),SP",
             InstructionType::LD,
@@ -270,6 +272,8 @@ impl InstructionSet {
             Operand::Register(RegisterType::L),
             Operand::D8,
         );
+
+        instructions[0x2F] = Instruction::instruction_no_operands("CPL", InstructionType::CPL);
         instructions[0x30] = Instruction::instruction_1_operand_with_condition(
             "JR NC,r8",
             InstructionType::JR,
@@ -310,6 +314,7 @@ impl InstructionSet {
             Operand::Indirect(RegisterType::HL),
             Operand::D8,
         );
+        instructions[0x37] = Instruction::instruction_no_operands("SCF", InstructionType::SCF);
         instructions[0x38] = Instruction::instruction_1_operand_with_condition(
             "JR C,r8",
             InstructionType::JR,
@@ -351,6 +356,7 @@ impl InstructionSet {
             Operand::D8,
         );
 
+        instructions[0x3F] = Instruction::instruction_no_operands("CCF", InstructionType::CCF);
         instructions[0x40] = Instruction::instruction_2_operands(
             "LD B,B",
             InstructionType::LD,
@@ -767,16 +773,16 @@ impl InstructionSet {
             Operand::Register(RegisterType::H),
         );
         instructions[0x85] = Instruction::instruction_2_operands(
+            "ADD A,L",
+            InstructionType::ADD,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::L),
+        );
+        instructions[0x86] = Instruction::instruction_2_operands(
             "ADD A,(HL)",
             InstructionType::ADD,
             Operand::Register(RegisterType::A),
             Operand::Indirect(RegisterType::HL),
-        );
-        instructions[0x86] = Instruction::instruction_2_operands(
-            "ADD A,A",
-            InstructionType::ADD,
-            Operand::Register(RegisterType::A),
-            Operand::Register(RegisterType::A),
         );
         instructions[0x87] = Instruction::instruction_2_operands(
             "ADD A,A",
@@ -816,16 +822,16 @@ impl InstructionSet {
             Operand::Register(RegisterType::H),
         );
         instructions[0x8D] = Instruction::instruction_2_operands(
+            "ADC A,L",
+            InstructionType::ADC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::L),
+        );
+        instructions[0x8E] = Instruction::instruction_2_operands(
             "ADC A,(HL)",
             InstructionType::ADC,
             Operand::Register(RegisterType::A),
             Operand::Indirect(RegisterType::HL),
-        );
-        instructions[0x8E] = Instruction::instruction_2_operands(
-            "ADC A,A",
-            InstructionType::ADC,
-            Operand::Register(RegisterType::A),
-            Operand::Register(RegisterType::A),
         );
         instructions[0x8F] = Instruction::instruction_2_operands(
             "ADC A,A",
@@ -859,21 +865,73 @@ impl InstructionSet {
             InstructionType::SUB,
             Operand::Register(RegisterType::H),
         );
+
         instructions[0x95] = Instruction::instruction_1_operand(
+            "SUB L",
+            InstructionType::SUB,
+            Operand::Register(RegisterType::L),
+        );
+
+        instructions[0x96] = Instruction::instruction_1_operand(
             "SUB (HL)",
             InstructionType::SUB,
             Operand::Indirect(RegisterType::HL),
-        );
-        instructions[0x96] = Instruction::instruction_1_operand(
-            "SUB A",
-            InstructionType::SUB,
-            Operand::Register(RegisterType::A),
         );
         instructions[0x97] = Instruction::instruction_1_operand(
             "SUB A",
             InstructionType::SUB,
             Operand::Register(RegisterType::A),
         );
+
+        instructions[0x98] = Instruction::instruction_2_operands(
+            "SBC A B",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::B),
+        );
+        instructions[0x99] = Instruction::instruction_2_operands(
+            "SBC A C",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::C),
+        );
+        instructions[0x9A] = Instruction::instruction_2_operands(
+            "SBC A D",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::D),
+        );
+        instructions[0x9B] = Instruction::instruction_2_operands(
+            "SBC A E",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::E),
+        );
+        instructions[0x9C] = Instruction::instruction_2_operands(
+            "SBC A H",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::H),
+        );
+        instructions[0x9D] = Instruction::instruction_2_operands(
+            "SBC A L",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::L),
+        );
+        instructions[0x9E] = Instruction::instruction_2_operands(
+            "SBC A (HL)",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Indirect(RegisterType::HL),
+        );
+        instructions[0x9F] = Instruction::instruction_2_operands(
+            "SBC A A",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::Register(RegisterType::A),
+        );
+
         instructions[0xA0] = Instruction::instruction_1_operand(
             "AND B",
             InstructionType::AND,
@@ -1082,6 +1140,9 @@ impl InstructionSet {
             Operand::D8,
         );
 
+        instructions[0xC7] =
+            Instruction::instruction_with_parameter("RST 00H", InstructionType::RST, 0x00);
+
         instructions[0xC8] = Instruction::instruction_no_operands_with_condition(
             "RET Z",
             InstructionType::RET,
@@ -1116,6 +1177,8 @@ impl InstructionSet {
             Operand::Register(RegisterType::A),
             Operand::D8,
         );
+        instructions[0xCF] =
+            Instruction::instruction_with_parameter("RST 08H", InstructionType::RST, 0x08);
         instructions[0xD0] = Instruction::instruction_no_operands_with_condition(
             "RET NC",
             InstructionType::RET,
@@ -1148,11 +1211,16 @@ impl InstructionSet {
 
         instructions[0xD6] =
             Instruction::instruction_1_operand("SUB d8", InstructionType::SUB, Operand::D8);
+        instructions[0xD7] =
+            Instruction::instruction_with_parameter("RST 10H", InstructionType::RST, 0x10);
+
         instructions[0xD8] = Instruction::instruction_no_operands_with_condition(
             "RET C",
             InstructionType::RET,
             ConditionType::C,
         );
+
+        instructions[0xD9] = Instruction::instruction_no_operands("RETI", InstructionType::RETI);
         instructions[0xDA] = Instruction::instruction_1_operand_with_condition(
             "JP C,a16",
             InstructionType::JP,
@@ -1165,6 +1233,14 @@ impl InstructionSet {
             Operand::A16,
             ConditionType::C,
         );
+        instructions[0xDE] = Instruction::instruction_2_operands(
+            "SBC A d8",
+            InstructionType::SBC,
+            Operand::Register(RegisterType::A),
+            Operand::D8,
+        );
+        instructions[0xDF] =
+            Instruction::instruction_with_parameter("RST 18H", InstructionType::RST, 0x18);
         instructions[0xE0] = Instruction::instruction_2_operands(
             "LDH (a8),A",
             InstructionType::LDH,
@@ -1193,6 +1269,9 @@ impl InstructionSet {
         instructions[0xE6] =
             Instruction::instruction_1_operand("AND d8", InstructionType::AND, Operand::D8);
 
+        instructions[0xE7] =
+            Instruction::instruction_with_parameter("RST 20H", InstructionType::RST, 0x20);
+
         instructions[0xE8] = Instruction::instruction_2_operands(
             "ADD SP,r8",
             InstructionType::ADD,
@@ -1213,6 +1292,9 @@ impl InstructionSet {
 
         instructions[0xEE] =
             Instruction::instruction_1_operand("XOR d8", InstructionType::XOR, Operand::D8);
+
+        instructions[0xEF] =
+            Instruction::instruction_with_parameter("RST 28H", InstructionType::RST, 0x28);
 
         instructions[0xF0] = Instruction::instruction_2_operands(
             "LDH A,(a8)",
@@ -1244,6 +1326,9 @@ impl InstructionSet {
         instructions[0xF6] =
             Instruction::instruction_1_operand("OR d8", InstructionType::OR, Operand::D8);
 
+        instructions[0xF7] =
+            Instruction::instruction_with_parameter("RST 30H", InstructionType::RST, 0x30);
+
         instructions[0xF8] = Instruction::instruction_2_operands(
             "LD HL,SP+r8",
             InstructionType::LD,
@@ -1267,6 +1352,8 @@ impl InstructionSet {
         instructions[0xFE] =
             Instruction::instruction_1_operand("CP d8", InstructionType::CP, Operand::D8);
 
+        instructions[0xFF] =
+            Instruction::instruction_with_parameter("RST 38H", InstructionType::RST, 0x38);
         Self { instructions }
     }
 

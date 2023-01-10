@@ -8,7 +8,7 @@ pub struct Instruction<'a> {
     pub operand_1: Operand,
     pub operand_2: Operand,
     pub condition: ConditionType,
-    pub parameters: Option<u8>,
+    pub parameter: Option<u8>,
 }
 
 impl<'a> Display for Instruction<'a> {
@@ -25,7 +25,7 @@ impl<'i> Default for Instruction<'i> {
             operand_1: Default::default(),
             operand_2: Default::default(),
             condition: Default::default(),
-            parameters: Default::default(),
+            parameter: Default::default(),
         }
     }
 }
@@ -38,6 +38,18 @@ impl<'i> Instruction<'i> {
         Self {
             description,
             instruction_type,
+            ..Default::default()
+        }
+    }
+    pub fn instruction_with_parameter(
+        description: &'i str,
+        instruction_type: InstructionType,
+        parameter: u8,
+    ) -> Self {
+        Self {
+            description,
+            instruction_type,
+            parameter: Some(parameter),
             ..Default::default()
         }
     }
