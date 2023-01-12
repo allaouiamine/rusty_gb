@@ -1,49 +1,31 @@
-use crate::cpu::CpuContext;
+use std::{thread, time::Duration};
 
-pub struct EmuContext {
-    paused: bool,
-    running: bool,
-    ticks: usize,
-}
+use crate::{cpu::CpuContext, ui::UI};
+
+use minifb::Key;
+
+pub struct EmuContext;
 
 impl EmuContext {
-    pub fn new() -> Self {
-        Self {
-            paused: false,
-            running: false,
-            ticks: 0,
-        }
-    }
-    pub fn get_ticks(&self) -> usize {
-        self.ticks
-    }
     pub fn delay(&self, _: usize) {
         unimplemented!()
     }
 
     pub fn run(&mut self, cpu: &mut CpuContext) {
-        // init UI
+        // while cpu.ticks < 0x00031688 {
+        // cpu.cpu_step();
+        // }
 
-        // starting emulation
-        self.running = true;
-        println!("Emulation started!");
-        println!("Emulation started!");
+        let mut ui = UI::new(16 * 8, 24 * 8, minifb::Scale::X8);
+        while ui.dbg_window.is_open() && !ui.dbg_window.is_key_down(Key::Escape) {
+            cpu.cpu_step();
 
-        while self.running {
-            if self.paused {
-                // self.delay(10);
-                unimplemented!();
+            if let Some(address) = cpu.last_written_address {
+                if address > 0x8000 && address < 0x9000 {
+                    ui.update(&cpu);
+                    thread::sleep(Duration::from_nanos(2));
+                }
             }
-
-            if !cpu.cpu_step() {
-                // println!("CPU Stopped!");
-                // exit(3);
-            }
-            self.ticks += 1;
         }
-    }
-
-    pub fn emu_cycles(&mut self, cpu_cycles: usize) {
-        self.ticks += cpu_cycles;
     }
 }

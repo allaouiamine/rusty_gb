@@ -14,7 +14,7 @@ FF80	FFFE	High RAM (HRAM)
 FFFF	FFFF	Interrupt Enable register (IE)
 */
 
-use crate::{cartridge::Cartridge, io::IO, ram::RamContext};
+use crate::{cartridge::Cartridge, io::IO, ppu::PPU, ram::RamContext};
 
 // use crate::ram::RamContext;
 
@@ -23,6 +23,8 @@ pub struct Bus<'a> {
     ram: RamContext,
     pub io: IO,
     interrupt_enable_register: u8,
+
+    ppu: PPU,
 
     dbg_message: [u8; 1024],
     dbg_message_size: usize,
@@ -40,11 +42,14 @@ impl<'a> Bus<'a> {
 
         let io = IO::new();
 
+        let ppu = PPU::new();
+
         Self {
             cartridge,
             ram,
             io,
             interrupt_enable_register: 0,
+            ppu,
             dbg_message: [0; 1024],
             dbg_message_size: 0,
         }
@@ -92,12 +97,7 @@ impl<'a> Bus<'a> {
             self.cartridge.cart_read(address)
         } else if address < 0xA000 {
             // character map data
-            println!(
-                "UNSUPPORTED bus_read({:#02X}) - character map data",
-                address
-            );
-            // unimplemented!();
-            0
+            self.ppu.ppu_vram_read(address)
         } else if address < 0xC000 {
             // cartridge RAM
             self.cartridge.cart_read(address)
@@ -109,8 +109,7 @@ impl<'a> Bus<'a> {
             0
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            println!("UNSUPPORTED bus_read({:#02X}) - OAM", address);
-            0
+            self.ppu.oam_read(address, false)
             // unimplemented!();
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
@@ -139,11 +138,7 @@ impl<'a> Bus<'a> {
             self.cartridge.cart_write(address, value);
         } else if address < 0xA000 {
             // character map data
-            println!(
-                "UNSUPPORTED bus_write({:#02X}, {:#02X}) - character map data",
-                address, value
-            );
-            // unimplemented!()
+            self.ppu.ppu_vram_write(address, value);
         } else if address < 0xC000 {
             // cartridge RAM
             self.cartridge.cart_write(address, value);
@@ -154,8 +149,7 @@ impl<'a> Bus<'a> {
             // Mirror of C000~DDFF (ECHO RAM)	Nintendo says use of this area is prohibited.
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            println!("UNSUPPORTED bus_write({:#02X}, {:#02X})", address, value);
-            unimplemented!();
+            self.ppu.oam_write(address, value, false);
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
         } else if address < 0xFF80 {

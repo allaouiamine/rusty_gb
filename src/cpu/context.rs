@@ -29,6 +29,7 @@ pub struct CpuContext<'a> {
     pub ticks: usize,
     interrupt_master_enabled: bool,
     enabling_ime: bool,
+    pub last_written_address: Option<u16>,
 }
 
 impl<'a> CpuContext<'a> {
@@ -50,6 +51,7 @@ impl<'a> CpuContext<'a> {
             ticks: 0,
             interrupt_master_enabled: false,
             enabling_ime: false,
+            last_written_address: None,
         }
     }
 
@@ -144,6 +146,7 @@ impl<'a> CpuContext<'a> {
                 panic!("cannot bus_write signed data!");
             }
         }
+        self.last_written_address = Some(address);
     }
 
     pub fn stack_push(&mut self, data: u8) {
@@ -229,6 +232,7 @@ impl<'a> CpuContext<'a> {
     }
 
     pub fn cpu_step(&mut self) -> bool {
+        self.last_written_address = None;
         self.old_registers = self.cpu_registers.clone();
         if !self.halted {
             self.fetch_instruction();
