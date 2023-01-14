@@ -29,7 +29,11 @@ pub struct CpuContext<'a> {
     pub ticks: usize,
     interrupt_master_enabled: bool,
     enabling_ime: bool,
+
     pub last_written_address: Option<u16>,
+    pub dma_done: bool,
+
+    ly: u8,
 }
 
 impl<'a> CpuContext<'a> {
@@ -52,6 +56,9 @@ impl<'a> CpuContext<'a> {
             interrupt_master_enabled: false,
             enabling_ime: false,
             last_written_address: None,
+
+            dma_done: false,
+            ly: 0,
         }
     }
 
@@ -122,9 +129,19 @@ impl<'a> CpuContext<'a> {
         self.cpu_registers.set_register(register_type, value);
     }
 
+    fn return_and_inc_ly(&mut self) -> u8 {
+        let ly = self.ly;
+        self.ly += 1;
+        ly
+    }
+
     pub fn bus_read(&mut self, address: u16) -> u8 {
         self.emu_cycles(1);
-        self.bus.bus_read(address)
+        if address == 0xFF44 {
+            self.return_and_inc_ly()
+        } else {
+            self.bus.bus_read(address)
+        }
     }
 
     pub fn bus_read16(&mut self, address: u16) -> u16 {
@@ -232,6 +249,7 @@ impl<'a> CpuContext<'a> {
     }
 
     pub fn cpu_step(&mut self) -> bool {
+        self.dma_done = false;
         self.last_written_address = None;
         self.old_registers = self.cpu_registers.clone();
         if !self.halted {
@@ -256,6 +274,7 @@ impl<'a> CpuContext<'a> {
         if self.enabling_ime {
             self.interrupt_master_enabled = true;
         }
+
         true
     }
     pub fn get_next_pc_value(&mut self) -> u8 {
@@ -272,6 +291,7 @@ impl<'a> CpuContext<'a> {
                     self.request_interrupt(interrupt);
                 }
             }
+            self.dma_done = self.bus.dma_tick();
         }
     }
 

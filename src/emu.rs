@@ -20,10 +20,15 @@ impl EmuContext {
         while ui.dbg_window.is_open() && !ui.dbg_window.is_key_down(Key::Escape) {
             cpu.cpu_step();
 
-            if let Some(address) = cpu.last_written_address {
-                if address > 0x8000 && address < 0x9000 {
-                    ui.update(&cpu);
-                    thread::sleep(Duration::from_nanos(2));
+            if cpu.dma_done {
+                ui.update(cpu, true);
+                thread::sleep(Duration::from_secs(10));
+            } else {
+                if let Some(address) = cpu.last_written_address {
+                    if address > 0x8000 && address < 0x9000 {
+                        ui.update(&cpu, false);
+                        thread::sleep(Duration::from_nanos(2));
+                    }
                 }
             }
         }

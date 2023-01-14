@@ -44,7 +44,16 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, cpu: &CpuContext) {
+    pub fn update(&mut self, cpu: &CpuContext, force_update: bool) {
+        if force_update {
+            for tile_number in 0..TILE_COUNT {
+                self.update_buffer_with_tile(tile_number, &cpu.bus);
+                self.dbg_window
+                    .update_with_buffer(&self.buffer, self.width, self.height)
+                    .unwrap();
+                return;
+            }
+        }
         // check if tile is complete
         let address = cpu.last_written_address.unwrap() - 0x8000;
         if address & 0xF < 0xF {
@@ -55,6 +64,7 @@ impl UI {
         self.dbg_window
             .update_with_buffer(&self.buffer, self.width, self.height)
             .unwrap();
+        // thread::sleep(Duration::from_nanos(2));
     }
 
     fn update_buffer_with_tile(&mut self, tile_number: usize, bus: &Bus) {
