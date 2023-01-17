@@ -1022,8 +1022,8 @@ impl InstructionSet {
         );
 
         instructions[0xB0] = Instruction::instruction_1_operand(
-            "AND B",
-            InstructionType::AND,
+            "OR B",
+            InstructionType::OR,
             Operand::Register(RegisterType::B),
         );
 

@@ -7,7 +7,7 @@ use super::CpuContext;
 
 impl<'a> Display for CpuContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        let mut pc = self.old_registers.pc;
+        let mut pc = self.old_pc;
 
         let mut instruction_str = format!("{}", self.current_instruction);
 
@@ -101,11 +101,11 @@ impl<'a> Display for CpuContext<'a> {
             f,
             "{:08X} - {:04X}: {:12} ({:02X} {:02X} {:02X}) {}",
             self.ticks,
-            self.old_registers.pc,
+            self.old_pc,
             instruction_str,
             self.current_opcode,
-            self.bus.bus_read(self.old_registers.pc + 1),
-            self.bus.bus_read(self.old_registers.pc + 2),
+            self.bus.bus_read(self.old_pc + 1),
+            self.bus.bus_read(self.old_pc + 2),
             self.cpu_registers
         )
     }

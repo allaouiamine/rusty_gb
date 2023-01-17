@@ -1,14 +1,11 @@
 use core::panic;
-
-use crate::{bus::Bus, cpu::CpuContext};
+use std::{thread, time::Duration};
 
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-const TILE_COLORS: [u32; 4] = [0xFFFFFF, 0xAAAAAA, 0x555555, 0x000000];
-const TILE_COUNT: usize = 384;
-const BYTES_PER_TILE: usize = 16;
+use crate::cpu::CpuContext;
 
-const VRAM_TILE_ADDRESS: u16 = 0x8000;
+const TILE_COLORS: [u32; 4] = [0xFFFFFF, 0xAAAAAA, 0x555555, 0x000000];
 
 #[derive(Copy, Clone)]
 pub struct TilePosition {
@@ -18,8 +15,8 @@ pub struct TilePosition {
 
 pub struct UI {
     pub dbg_window: Window,
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
     pub buffer: Vec<u32>,
 }
 
@@ -35,7 +32,7 @@ impl UI {
             });
 
         dbg_window.set_background_color(0x11, 0x3F, 0x11);
-        dbg_window.limit_update_rate(Some(std::time::Duration::from_micros(33300)));
+        // dbg_window.limit_update_rate(Some(std::time::Duration::from_micros(33300)));
         Self {
             dbg_window,
             buffer,
@@ -44,32 +41,31 @@ impl UI {
         }
     }
 
-    pub fn update(&mut self, cpu: &CpuContext, force_update: bool) {
-        if force_update {
-            for tile_number in 0..TILE_COUNT {
-                self.update_buffer_with_tile(tile_number, &cpu.bus);
-                self.dbg_window
-                    .update_with_buffer(&self.buffer, self.width, self.height)
-                    .unwrap();
+    pub fn update(&mut self, cpu: &CpuContext) {
+        if cpu.dma_done {
+            for tile_number in 0..384 {
+                let tile = cpu.bus.fetch_tile(tile_number);
+                self.update_buffer_with_tile(tile_number, tile);
+            }
+        } else {
+            if let Some(address) = cpu.last_written_address {
+                let tile_number = ((address - 0x8000) >> 4) as usize;
+                if tile_number > 383 {
+                    return;
+                }
+                let tile = cpu.bus.fetch_tile(tile_number);
+                self.update_buffer_with_tile(tile_number, tile)
+            } else {
                 return;
             }
         }
-        // check if tile is complete
-        let address = cpu.last_written_address.unwrap() - 0x8000;
-        if address & 0xF < 0xF {
-            return;
-        }
-        let tile_number = (address >> 4) as usize;
-        self.update_buffer_with_tile(tile_number, &cpu.bus);
+
         self.dbg_window
             .update_with_buffer(&self.buffer, self.width, self.height)
             .unwrap();
-        // thread::sleep(Duration::from_nanos(2));
     }
 
-    fn update_buffer_with_tile(&mut self, tile_number: usize, bus: &Bus) {
-        let tile_array = Self::fetch_tile(tile_number, bus);
-
+    fn update_buffer_with_tile(&mut self, tile_number: usize, tile_array: [u8; 16]) {
         let mut s = String::new();
         let mut index = 0;
         while index < tile_array.len() {
@@ -104,19 +100,6 @@ impl UI {
             self.buffer[index] = pixel;
             x += 1;
         }
-    }
-
-    fn fetch_tile(tile_number: usize, bus: &Bus) -> [u8; BYTES_PER_TILE] {
-        if tile_number > TILE_COUNT {
-            panic!("Maximum tiles supported: {}", TILE_COUNT);
-        }
-        let tile_address = VRAM_TILE_ADDRESS + (tile_number * BYTES_PER_TILE) as u16;
-
-        let mut tile_array: [u8; 16] = [0; 16];
-        for i in 0..16 {
-            tile_array[i] = bus.bus_read(tile_address + (i as u16));
-        }
-        tile_array
     }
 
     pub fn combine_tile_bytes(byte1: u8, byte2: u8) -> [u32; 8] {

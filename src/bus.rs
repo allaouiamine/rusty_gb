@@ -28,7 +28,7 @@ pub struct Bus<'a> {
 
     pub ppu: PPU,
 
-    dma: DMA,
+    pub dma: DMA,
 
     dbg_message: [u8; 1024],
     dbg_message_size: usize,
@@ -119,7 +119,7 @@ impl<'a> Bus<'a> {
             if self.dma.dma_is_transferring() {
                 0xFF
             } else {
-                self.ppu.oam_read(address, false)
+                self.ppu.oam_read(address)
             }
             // unimplemented!();
         } else if address < 0xFF00 {
@@ -213,5 +213,17 @@ impl<'a> Bus<'a> {
         } else {
             false
         }
+    }
+    pub fn fetch_tile(&self, tile_number: usize) -> [u8; 16] {
+        if tile_number > 384 {
+            panic!("Maximum tiles supported: {}", 384);
+        }
+        let tile_address = 0x8000 + (tile_number * 16) as u16;
+
+        let mut tile_array: [u8; 16] = [0; 16];
+        for i in 0..16 {
+            tile_array[i] = self.bus_read(tile_address + (i as u16));
+        }
+        tile_array
     }
 }

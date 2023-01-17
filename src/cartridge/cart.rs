@@ -103,9 +103,10 @@ impl<'rom> Cartridge<'rom> {
         return self.rom_data[address as usize];
     }
 
-    pub fn cart_write(&self, address: u16, value: u8) {
+    pub fn cart_write(&mut self, address: u16, value: u8) {
         // For now we only support ROM ONLY cart type ...
         println!("cart_write({:#02X}, {:#02X})", address, value);
+        // self.rom_data[address as usize] = value;
         // unimplemented!();
     }
 }

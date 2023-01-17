@@ -23,7 +23,7 @@ pub struct CpuContext<'a> {
     pub cpu_registers: CpuRegisters,
     pub current_instruction: &'a Instruction<'a>,
     fetched_data: FetchedData,
-    pub old_registers: CpuRegisters,
+    pub old_pc: u16,
     pub current_opcode: u8,
     halted: bool,
     pub ticks: usize,
@@ -48,7 +48,7 @@ impl<'a> CpuContext<'a> {
                 source: ValueEnum::None,
                 destination: DestinationEnum::None,
             },
-            old_registers: CpuRegisters::new(),
+            old_pc: 0x100,
             current_opcode: 0,
             halted: false,
             // stepping: false,
@@ -82,6 +82,7 @@ impl<'a> CpuContext<'a> {
     fn interrupt_handle(&mut self, address: u16) {
         // Do not count the CPU ticks during interrupts!
         // self.stack_push16(self.cpu_registers.pc);
+        println!("Running interrupt handler for address: {:04X}", address);
         self.cpu_registers.sp -= 1;
         self.bus
             .bus_write8(self.cpu_registers.sp, (self.cpu_registers.pc >> 8) as u8);
@@ -251,13 +252,14 @@ impl<'a> CpuContext<'a> {
     pub fn cpu_step(&mut self) -> bool {
         self.dma_done = false;
         self.last_written_address = None;
-        self.old_registers = self.cpu_registers.clone();
+
+        self.old_pc = self.cpu_registers.pc;
         if !self.halted {
             self.fetch_instruction();
             self.fetch_data();
-            println!("{}", self);
-            self.bus.dbg_update();
-            self.bus.dbg_print();
+            // println!("{}", self);
+            // self.bus.dbg_update();
+            // self.bus.dbg_print();
             self.execute();
         } else {
             self.emu_cycles(1);
@@ -697,7 +699,7 @@ impl<'a> CpuContext<'a> {
 
     fn process_rst(&mut self) {
         if let Some(parameter) = self.current_instruction.parameter {
-            self.goto_address(parameter as u16, false);
+            self.goto_address(parameter as u16, true);
         } else {
             unimplemented!();
         }
@@ -819,7 +821,10 @@ impl<'a> CpuContext<'a> {
                 new_value = match self.cpu_registers.get_register(register) {
                     ValueEnum::SignedData8(_) | ValueEnum::None => unimplemented!(),
                     ValueEnum::Data8(value) => ValueEnum::Data8(value - 1),
-                    ValueEnum::Data16(value) => ValueEnum::Data16(value - 1),
+                    ValueEnum::Data16(value) => {
+                        self.emu_cycles(1);
+                        ValueEnum::Data16(value - 1)
+                    }
                 };
                 self.cpu_registers.set_register(register, new_value);
             }
@@ -913,7 +918,7 @@ impl<'a> CpuContext<'a> {
             if high bits 11, the operations are SET0, SET1, SET2, SET3, SET4, SET5, SET6 and SET8
             */
 
-            let register = REGISTERS_LOOKUP[cb as usize & 0x03];
+            let register = REGISTERS_LOOKUP[cb as usize & 0b111];
 
             let bit_operation = (cb >> 6) & 0b11;
 

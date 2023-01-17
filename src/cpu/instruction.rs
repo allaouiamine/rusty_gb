@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::fmt::{Formatter, Result as FmtResult};
 
-#[derive(Clone)]
 pub struct Instruction<'a> {
     pub description: &'a str,
     pub instruction_type: InstructionType,
