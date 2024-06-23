@@ -56,8 +56,9 @@ impl FetchedData {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ValueEnum {
+    // TODO: Cleanup ValueEnum
     None,
-    SignedData8(i8),
+    //SignedData8(i8),
     Data8(u8),
     Data16(u16),
 }
@@ -127,5 +128,26 @@ pub fn check_carry_relative(n: u16, r: i8) -> bool {
 }
 
 pub fn check_half_carry_relative(n: u16, r: i8) -> bool {
+    // TODO: Make sure this is correct
     add_relative(n & 0x0F, r & 0x0F) > 0x0F
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_relative_positive() {
+        let n = 0x1234;
+        let r: i8 = 0x12;
+        assert_eq!(add_relative(n, r), 0x1246);
+    }
+
+    #[test]
+    fn test_add_relative_negative() {
+        let n = 0x1234;
+        let r: i8 = (0x88 as u8) as i8;
+        assert_eq!(add_relative(n, r), 0x11BC);
+    }
 }

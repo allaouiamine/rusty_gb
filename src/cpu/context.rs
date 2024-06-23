@@ -1,6 +1,7 @@
 use core::panic;
 
 use crate::bus::Bus;
+use crate::cpu::execution_plan::Action;
 use crate::cpu::util::add_relative;
 
 use super::instruction::ConditionType;
@@ -17,7 +18,7 @@ use super::util::FetchedData;
 use super::util::ValueEnum;
 use super::{instruction::Instruction, instruction_set::InstructionSet};
 
-pub struct CpuContext<'a> {
+pub struct GBCpuContext<'a> {
     pub bus: Bus<'a>,
     instruction_set: &'a InstructionSet,
     pub cpu_registers: CpuRegisters,
@@ -36,7 +37,7 @@ pub struct CpuContext<'a> {
     ly: u8,
 }
 
-impl<'a> CpuContext<'a> {
+impl<'a> GBCpuContext<'a> {
     pub fn new(rom_file: &'a str, instruction_set: &'a InstructionSet) -> Self {
         let bus = Bus::new(rom_file);
         Self {
@@ -120,14 +121,6 @@ impl<'a> CpuContext<'a> {
         self.set_interrupt_flags_register(interrupt_flags & !(interrupt_type as u8));
         self.halted = false;
         self.interrupt_master_enabled = false;
-    }
-
-    pub fn get_register(&self, register_type: RegisterType) -> ValueEnum {
-        self.cpu_registers.get_register(register_type)
-    }
-
-    pub fn set_register(&mut self, register_type: RegisterType, value: ValueEnum) {
-        self.cpu_registers.set_register(register_type, value);
     }
 
     fn return_and_inc_ly(&mut self) -> u8 {
@@ -279,11 +272,104 @@ impl<'a> CpuContext<'a> {
 
         true
     }
+
+    pub fn execute_plan(&mut self) -> anyhow::Result<usize> {
+        let mut last_value = ValueEnum::None;
+        for action in self.current_instruction.execution_plan.actions.iter() {
+            last_value = match action {
+                Action::None => todo!(),
+                Action::FetchData => ValueEnum::Data8(self.get_next_pc_value()),
+                Action::FetchData16Bits => ValueEnum::Data16(self.get_next_pc_value16()),
+                Action::FetchRegister(register_type) => {
+                    ValueEnum::Data8(self.cpu_registers.get_register(register_type))
+                }
+                Action::FetchRegister16Bits(register_type_16) => {
+                    ValueEnum::Data16(self.cpu_registers.get_register_16(register_type_16))
+                }
+                Action::FetchRegister16BitsWithOffset(register_type_16) => {
+                    if self.current_opcode != 0xF8 {
+                        anyhow::bail!("Only used in 0xF8 - 'LD HL,SP+r8'");
+                    }
+                    match register_type_16 {
+                        RegisterType::SP => {
+                            let offset = self.get_next_pc_value() as i8;
+                            let sp_value = self.cpu_registers.sp;
+
+                            let value = add_relative(sp_value, offset);
+
+                            let h = check_half_carry_relative(sp_value, offset);
+                            let c = check_carry_relative(sp_value, offset);
+
+                            self.cpu_registers.set_flags(
+                                Some(false),
+                                Some(false),
+                                Some(h),
+                                Some(c),
+                            );
+                            ValueEnum::Data16(value)
+                        }
+                        _ => anyhow::bail!("Only SP register is allowed to fetch with an offset"),
+                    }
+                }
+                Action::FetchIndirect(register_type_16) => {
+                    let address = self.cpu_registers.get_register_16(register_type_16);
+                    ValueEnum::Data8(self.bus_read(address))
+                }
+                Action::FetchIndirectZeroPage(register_type) => {
+                    // This is GameBoy specific implementation of the zero page
+                    // which is technically the last 256 bytes of the memory, not the first 256
+                    // the 8 bit address is stored in the C register and then we add 0xFF00 to it
+                    match register_type {
+                        RegisterType::C => {
+                            let address = self.cpu_registers.get_register(register_type) as u16;
+                            ValueEnum::Data8(self.bus_read(address | 0xFF00))
+                        }
+                        _ => anyhow::bail!("Only C register is allowed for zero page addressing"),
+                    }
+                }
+                Action::FetchIndirectAndIncremment(register_type_16) => {
+                    let address = self.cpu_registers.get_register_16(register_type_16);
+                    self.cpu_registers
+                        .set_register_16(register_type_16, address + 1);
+                    let value = self.bus_read(address);
+                    ValueEnum::Data8(value)
+                }
+                Action::FetchIndirectAndDecrement(register_type_16) => {
+                    let address = self.cpu_registers.get_register_16(register_type_16);
+                    self.cpu_registers
+                        .set_register_16(register_type_16, address - 1);
+                    let value = self.bus_read(address);
+                    ValueEnum::Data8(value)
+                }
+
+                Action::ArithmeticOperation(_) => todo!(),
+                Action::ArithmeticOperation16Bits(_) => todo!(),
+
+                Action::StoreRegister(_) => todo!(),
+                Action::StoreRegister16Bits(_) => todo!(),
+                Action::StoreRegisterIndirect(_) => todo!(),
+                Action::StoreIndirectZeroPage(_) => todo!(),
+                Action::StoreIndirectAndIncrement(_) => todo!(),
+                Action::StoreIndirectAndDecrement(_) => todo!(),
+                Action::StoreAddress => todo!(),
+            };
+            println!("last_value: {:?}", last_value);
+        }
+        unimplemented!()
+    }
+
     pub fn get_next_pc_value(&mut self) -> u8 {
         let value = self.bus_read(self.cpu_registers.pc);
         self.cpu_registers.pc += 1;
         value
     }
+
+    pub fn get_next_pc_value16(&mut self) -> u16 {
+        let lo = self.get_next_pc_value() as u16;
+        let hi = self.get_next_pc_value() as u16;
+        (hi << 8) | lo
+    }
+
     fn emu_cycles(&mut self, ticks: usize) {
         for _ in 0..ticks {
             for _ in 0..4 {

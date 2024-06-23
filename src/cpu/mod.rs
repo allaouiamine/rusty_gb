@@ -9,3 +9,4 @@ pub mod instruction;
 pub mod instruction_set;
 pub mod registers;
 pub mod util;
+pub mod execution_plan;

@@ -1,11 +1,14 @@
 use std::fmt::Display;
 use std::fmt::{Formatter, Result as FmtResult};
 
+use super::execution_plan::ExecutionPlan;
+
 pub struct Instruction<'a> {
     pub description: &'a str,
     pub instruction_type: InstructionType,
-    pub operand_1: Operand,
-    pub operand_2: Operand,
+    pub execution_plan: ExecutionPlan,
+    //pub operand_1: Operand,
+    //pub operand_2: Operand,
     pub condition: ConditionType,
     pub parameter: Option<u8>,
 }
@@ -21,10 +24,11 @@ impl<'i> Default for Instruction<'i> {
         Self {
             description: "NONE",
             instruction_type: Default::default(),
-            operand_1: Default::default(),
-            operand_2: Default::default(),
+            //operand_1: Default::default(),
+            //operand_2: Default::default(),
             condition: Default::default(),
             parameter: Default::default(),
+            execution_plan: Default::default(),
         }
     }
 }
