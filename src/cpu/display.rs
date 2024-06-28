@@ -1,9 +1,58 @@
 use std::fmt::Display;
+use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 
-use super::instruction::InstructionType;
-use super::instruction::Operand;
-use super::CpuContext;
+use super::registers::CpuRegisters;
+use super::types::RegisterType;
+use super::types::ValueEnum;
+
+
+impl Display for ValueEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        match self {
+            ValueEnum::SignedData8(_) | ValueEnum::None => panic!("Cannot display SignedData8"),
+            ValueEnum::Data8(value) => write!(f, "{:02X}", value),
+            ValueEnum::Data16(value) => write!(f, "{:04X}", value),
+        }
+    }
+}
+
+impl Display for RegisterType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let register_str = match *self {
+            Self::A => "A",
+            Self::F => "F",
+            Self::B => "B",
+            Self::C => "C",
+            Self::D => "D",
+            Self::E => "E",
+            Self::H => "H",
+            Self::L => "L",
+            Self::AF => "AF",
+            Self::BC => "BC",
+            Self::DE => "DE",
+            Self::HL => "HL",
+            Self::SP => "SP",
+            Self::PC => "PC",
+        };
+        write!(f, "{}", register_str)
+    }
+}
+
+impl Display for CpuRegisters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        write!(
+            f,
+            "A: {:02X} F: {} BC: {} DE: {} HL: {}",
+            self.a,
+            self.f,
+            self.get_register_16(&RegisterType::BC),
+            self.get_register_16(&RegisterType::DE),
+            self.get_register_16(&RegisterType::HL),
+        )
+    }
+}
+/*
 
 impl<'a> Display for CpuContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
@@ -110,3 +159,5 @@ impl<'a> Display for CpuContext<'a> {
         )
     }
 }
+
+*/

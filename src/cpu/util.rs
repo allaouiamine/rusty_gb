@@ -1,112 +1,4 @@
-use core::panic;
-use std::fmt::{Display, Error, Result as FmtResult};
-
-use super::RegisterType;
-
-#[derive(Debug)]
-pub enum DestinationEnum {
-    None,
-    Register(RegisterType),
-    Address(u16),
-}
-
-impl Default for DestinationEnum {
-    fn default() -> Self {
-        DestinationEnum::None
-    }
-}
-
-#[derive(Debug)]
-pub struct FetchedData {
-    pub source: ValueEnum,
-    pub destination: DestinationEnum,
-}
-
-impl Default for FetchedData {
-    fn default() -> Self {
-        Self {
-            source: Default::default(),
-            destination: Default::default(),
-        }
-    }
-}
-
-impl FetchedData {
-    pub fn with_source(source: ValueEnum) -> Self {
-        Self {
-            source,
-            ..Default::default()
-        }
-    }
-
-    pub fn with_destination(destination: DestinationEnum) -> Self {
-        Self {
-            destination,
-            ..Default::default()
-        }
-    }
-
-    pub fn new(source: ValueEnum, destination: DestinationEnum) -> Self {
-        Self {
-            source,
-            destination,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum ValueEnum {
-    // TODO: Cleanup ValueEnum
-    None,
-    //SignedData8(i8),
-    Data8(u8),
-    Data16(u16),
-}
-
-impl Default for ValueEnum {
-    fn default() -> Self {
-        ValueEnum::None
-    }
-}
-
-impl Display for ValueEnum {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        match self {
-            ValueEnum::SignedData8(_) | ValueEnum::None => panic!("Cannot display SignedData8"),
-            ValueEnum::Data8(value) => write!(f, "{:02X}", value),
-            ValueEnum::Data16(value) => write!(f, "{:04X}", value),
-        }
-    }
-}
-
-impl TryFrom<ValueEnum> for u16 {
-    type Error = Error;
-
-    fn try_from(value: ValueEnum) -> Result<Self, Self::Error> {
-        match value {
-            ValueEnum::SignedData8(_) | ValueEnum::None => Err(Error),
-            ValueEnum::Data8(v) => Ok(v as u16),
-            ValueEnum::Data16(v) => Ok(v as u16),
-        }
-    }
-}
-
-impl TryFrom<ValueEnum> for u8 {
-    type Error = Error;
-
-    fn try_from(value: ValueEnum) -> Result<Self, Self::Error> {
-        match value {
-            ValueEnum::SignedData8(_) | ValueEnum::None => Err(Error),
-            ValueEnum::Data8(v) => Ok(v),
-            ValueEnum::Data16(_) => Err(Error),
-        }
-    }
-}
-
-pub enum Bits {
-    C = 4,
-    Z = 7,
-}
+use super::types::Bits;
 
 pub fn is_bit_set(register: u8, bits: Bits) -> bool {
     let mask: u8 = 1 << (bits as u8);
@@ -124,7 +16,7 @@ pub fn add_relative(n: u16, r: i8) -> u16 {
 }
 
 pub fn check_carry_relative(n: u16, r: i8) -> bool {
-    add_relative(n, r) > 0xFF
+    add_relative(n & 0xFF, r) > 0xFF
 }
 
 pub fn check_half_carry_relative(n: u16, r: i8) -> bool {
@@ -132,9 +24,41 @@ pub fn check_half_carry_relative(n: u16, r: i8) -> bool {
     add_relative(n & 0x0F, r & 0x0F) > 0x0F
 }
 
+/**
+ * Adds two 8-bit values and a carry (0 or 1) and then returns the result along with the flags
+ * Z: Set if result is zero
+ * N: always false for all 8bit ADD and ADC
+ * H: Set if carry from bit 3
+ * C: Set if carry from bit 7
+ */
+pub fn add_with_carry(left_value: u8, right_value: u8, carry: u8) -> (u8, bool, bool, bool, bool) {
+    let sum = left_value.wrapping_add(right_value).wrapping_add(carry);
+    let z = sum == 0;
+    let h = (left_value & 0x0F) + (right_value & 0x0F) + carry > 0x0F;
+    let c = (left_value as u16) + (right_value as u16) + (carry as u16) > 0xFF;
+    (sum, z, false, h, c)
+}
+
+/**
+ * Subtracts two 8-bit values and a carry (0 or 1) and then returns the result along with the flags
+ * Z: Set if result is zero
+ * N: always true for all 8bit SUB and SBC
+ * H: Set if borrow from bit 4
+ * C: Set if borrow
+ */
+pub fn sub_with_carry(left: u8, right: u8, carry: u8) -> (u8, bool, bool, bool, bool) {
+    let diff = left - right - carry;
+    let z = diff == 0;
+    let c = left < right + carry;
+    let h = (left & 0x0F) < (right & 0x0F) + carry;
+    (diff, z, true, h, c)
+}
+
 
 #[cfg(test)]
 mod tests {
+    use crate::cpu::types::ValueEnum;
+
     use super::*;
 
     #[test]
@@ -149,5 +73,84 @@ mod tests {
         let n = 0x1234;
         let r: i8 = (0x88 as u8) as i8;
         assert_eq!(add_relative(n, r), 0x11BC);
+    }
+
+    #[test]
+    fn test_add_with_carry() {
+        let (result, z, n, h, c) = add_with_carry(0x16, 0x35, 0);
+        assert_eq!(result, 0x4b);
+        assert_eq!(z, false);
+        assert_eq!(h, false);
+        assert_eq!(c, false);
+        assert_eq!(n, false);
+    }
+
+    #[test]
+    fn test_add_with_carry_half_carry() {
+        let (result, z, n, h, c) = add_with_carry(0x16, 0x35, 1);
+        assert_eq!(result, 0x4c);
+        assert_eq!(z, false);
+        assert_eq!(h, true);
+        assert_eq!(c, false);
+        assert_eq!(n, false);
+    }
+
+    #[test]
+    fn test_add_with_carry_carry() {
+        let (result, z, n, h, c) = add_with_carry(0x36, 0xca, 1);
+        assert_eq!(result, 0x1);
+        assert_eq!(z, false);
+        assert_eq!(h, true);
+        assert_eq!(c, true);
+        assert_eq!(n, false);
+    }
+
+    #[test]
+    fn test_add_with_carry_carry_zero() {
+        let (result, z, n, h, c) = add_with_carry(0x36, 0xca, 0);
+        assert_eq!(result, 0);
+        assert_eq!(z, true);
+        assert_eq!(h, true);
+        assert_eq!(c, true);
+        assert_eq!(n, false);
+    }
+    #[test]
+    fn test_sub_with_carry() {
+        let (result, z, n, h, c) = sub_with_carry(0x16, 0x15, 0);
+        assert_eq!(result, 0x1);
+        assert_eq!(z, false);
+        assert_eq!(h, true);
+        assert_eq!(c, false);
+        assert_eq!(n, true);
+    }
+
+    #[test]
+    fn test_sub_with_carry_half_carry() {
+        let (result, z, n, h, c) = sub_with_carry(0x16, 0x15, 1);
+        assert_eq!(result, 0x0);
+        assert_eq!(z, true);
+        assert_eq!(h, false);
+        assert_eq!(c, false);
+        assert_eq!(n, true);
+    }
+
+    #[test]
+    fn test_sub_with_carry_carry() {
+        let (result, z, n, h, c) = sub_with_carry(0x16, 0x16, 0);
+        assert_eq!(result, 0x0);
+        assert_eq!(z, true);
+        assert_eq!(h, false);
+        assert_eq!(c, false);
+        assert_eq!(n, true);
+    }
+
+    #[test]
+    fn test_sub_with_carry_carry_zero() {
+        let (result, z, n, h, c) = sub_with_carry(0x16, 0x16, 1);
+        assert_eq!(result, 0xFF);
+        assert_eq!(z, false);
+        assert_eq!(h, true);
+        assert_eq!(c, true);
+        assert_eq!(n, true);
     }
 }

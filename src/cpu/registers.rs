@@ -1,7 +1,4 @@
-use super::{
-    instruction::RegisterType,
-    util::{combine, ValueEnum},
-};
+use super::{RegisterType, util::combine};
 use std::fmt::{Display, Result as FmtResult};
 
 pub enum Flags {
@@ -76,19 +73,6 @@ pub struct CpuRegisters {
     pub sp: u16, // stack pointer
 }
 
-impl Display for CpuRegisters {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        write!(
-            f,
-            "A: {:02X} F: {} BC: {} DE: {} HL: {}",
-            self.a,
-            self.f,
-            self.get_register(RegisterType::BC),
-            self.get_register(RegisterType::DE),
-            self.get_register(RegisterType::HL),
-        )
-    }
-}
 
 impl CpuRegisters {
     pub fn new() -> Self {
@@ -140,9 +124,7 @@ impl CpuRegisters {
             RegisterType::E => self.e,
             RegisterType::H => self.h,
             RegisterType::L => self.l,
-            _ => {
-                panic!("cannot read 8-bit value from {}", register);
-            }
+            other => panic!("Invalid 8 bits register type: {:?}", other),
         }
     }
 
@@ -154,13 +136,11 @@ impl CpuRegisters {
             RegisterType::HL => combine(self.h, self.l),
             RegisterType::SP => self.sp,
             RegisterType::PC => self.pc,
-            _ => {
-                panic!("cannot read 16-bit value from {}", register);
-            }
+            other => panic!("Invalid 16 bits register type: {:?}", other),
         }
     }
 
-    pub fn set_register(&mut self, register: RegisterType, value: u8) {
+    pub fn set_register(&mut self, register: &RegisterType, value: u8) {
         match register {
             RegisterType::A => self.a = value,
             RegisterType::F => self.f.register = value,
@@ -170,9 +150,7 @@ impl CpuRegisters {
             RegisterType::E => self.e = value,
             RegisterType::H => self.h = value,
             RegisterType::L => self.l = value,
-            _ => {
-                panic!("cannot write Data8 to {}", register);
-            }
+            other => panic!("Invalid 8 bits register type: {:?}", other),
         }
     }
 
@@ -202,9 +180,7 @@ impl CpuRegisters {
             RegisterType::SP => {
                 self.sp = value;
             }
-            _ => {
-                panic!("cannot write Data16 to {}", register);
-            }
+            other => panic!("Invalid 16 bits register type: {:?}", other),
         }
     }
 }

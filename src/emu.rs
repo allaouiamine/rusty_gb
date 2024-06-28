@@ -1,14 +1,6 @@
-use core::time;
-use std::{
-    sync::mpsc,
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::Instant;
 
-use crate::{
-    cpu::{util::ValueEnum, CpuContext},
-    ui::UI,
-};
+use crate::{cpu::CpuContext, ui::UI};
 
 use minifb::{Key, Scale};
 

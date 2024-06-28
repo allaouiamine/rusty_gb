@@ -1,5 +1,4 @@
 use core::panic;
-use std::{thread, time::Duration};
 
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 

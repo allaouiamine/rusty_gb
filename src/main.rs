@@ -1,9 +1,6 @@
 use std::{env, process::exit};
 
-use rusty_gb::{
-    cpu::{instruction_set::InstructionSet, CpuContext},
-    emu::EmuContext,
-};
+use rusty_gb::{cpu::CpuContext, emu::EmuContext};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -12,7 +9,6 @@ fn main() {
         exit(1);
     }
 
-    let instruction_set = InstructionSet::new();
-    let mut cpu_context = CpuContext::new(&args[1][..], &instruction_set);
+    let mut cpu_context = CpuContext::new(&args[1][..]);
     EmuContext.run(&mut cpu_context);
 }
