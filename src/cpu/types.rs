@@ -74,3 +74,29 @@ pub enum RegisterType {
     PC,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum InterruptType {
+    VBLANK = 1,
+    LCDStat = 2,
+    TIMER = 4,
+    SERIAL = 8,
+    JOYPAD = 16,
+}
+
+impl From<u8> for InterruptType {
+    fn from(value: u8) -> Self {
+        if value & 0x1 != 0 {
+            Self::VBLANK
+        } else if (value >> 1) & 0x1 != 0 {
+            Self::LCDStat
+        } else if (value >> 2) & 0x1 != 0 {
+            Self::TIMER
+        } else if (value >> 3) & 0x1 != 0 {
+            Self::SERIAL
+        } else if (value >> 4) & 0x1 != 0 {
+            Self::JOYPAD
+        } else {
+            unimplemented!();
+        }
+    }
+}

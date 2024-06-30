@@ -1,4 +1,4 @@
-use crate::cpu::context::InterruptType;
+use crate::cpu::types::InterruptType;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Timer {

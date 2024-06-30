@@ -10,31 +10,56 @@ use super::{
 
 pub trait AluOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> where Self: Sized;
+    ) -> anyhow::Result<AluOutput>;
+}
+
+pub struct NoOpearation;
+
+impl NoOpearation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for NoOpearation {
+    fn execute(
+        &self,
+        _fetched_data: ValueEnum,
+        _cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        Ok(AluOutput {
+            value: ValueEnum::None,
+            z: None,
+            n: None,
+            h: None,
+            c: None,
+            additional_cpu_cycles: 0,
+        })
+    }
 }
 
 pub struct AddOperation{
-    pub register_type: RegisterType,
+    pub register_type: Option<RegisterType>,
 }
 
 impl AddOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: *register_type }
+        Self { register_type: Some(*register_type) }
     }
 }
 
 impl AluOperation for AddOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         let (sum, z, n, h, c) = add_with_carry(
             cpu_registers.get_register(
-                register_type.ok_or(anyhow::anyhow!("No register provided for AddOpration"))?,
+                &self.register_type.ok_or(anyhow::anyhow!("No register provided for AddOpration"))?,
             ),
             fetched_data.try_into()?,
             0,
@@ -50,16 +75,24 @@ impl AluOperation for AddOperation {
     }
 }
 
-pub struct AddWithCarryOperation;
+pub struct AddWithCarryOperation{
+    pub register_type: Option<RegisterType>,
+}
+
+impl AddWithCarryOperation {
+    pub fn new(register_type: &RegisterType) -> Self {
+        Self { register_type: Some(*register_type) }
+    }
+}
 impl AluOperation for AddWithCarryOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
-        if register_type.ok_or(anyhow::anyhow!(
+        if self.register_type.ok_or(anyhow::anyhow!(
             "Register A must be set for AddWithCarryOperation"
-        ))? != &RegisterType::A
+        ))? != RegisterType::A
         {
             anyhow::bail!("Only A register is allowed for ADC");
         }
@@ -79,17 +112,25 @@ impl AluOperation for AddWithCarryOperation {
     }
 }
 
-pub struct AddRelativeOperation;
+pub struct AddRelativeOperation{
+    pub register_type: Option<RegisterType>,
+}
+
+impl AddRelativeOperation {
+    pub fn new(register_type: &RegisterType) -> Self {
+        Self { register_type: Some(*register_type) }
+    }
+}
 impl AluOperation for AddRelativeOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         // only used in 0xE8 - ADD SP, r8
-        if register_type.ok_or(anyhow::anyhow!(
+        if self.register_type.ok_or(anyhow::anyhow!(
             "Register SP must be set for AddRelativeOperation"
-        ))? != &RegisterType::SP
+        ))? != RegisterType::SP
         {
             anyhow::bail!("Only SP register is allowed for ADD SP, r8");
         }
@@ -113,15 +154,22 @@ impl AluOperation for AddRelativeOperation {
     }
 }
 
-pub struct AndOperation16;
+pub struct AndOperation16{
+    pub register_type: Option<RegisterType>,
+}
+impl AndOperation16 {
+    pub fn new(register_type: &RegisterType) -> Self {
+        Self { register_type: Some(*register_type) }
+    }
+}
 impl AluOperation for AndOperation16 {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         let register_value = cpu_registers.get_register_16(
-            register_type.ok_or(anyhow::anyhow!("No register provided for AndOperation16"))?,
+            &self.register_type.ok_or(anyhow::anyhow!("No register provided for AndOperation16"))?,
         );
         let fetched_data: u16 = fetched_data.try_into()?;
         let sum = register_value.wrapping_add(fetched_data);
@@ -141,15 +189,22 @@ impl AluOperation for AndOperation16 {
     }
 }
 
-pub struct SbcOperation;
+pub struct SbcOperation{
+    pub register_type: Option<RegisterType>,
+}
+impl SbcOperation {
+    pub fn new(register_type: &RegisterType) -> Self {
+        Self { register_type: Some(*register_type) }
+    }
+}
 impl AluOperation for SbcOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
-        if register_type.ok_or(anyhow::anyhow!("No register provided for SbcOperation"))?
-            != &RegisterType::A
+        if self.register_type.ok_or(anyhow::anyhow!("No register provided for SbcOperation"))?
+            != RegisterType::A
         {
             anyhow::bail!("Only A register is allowed for SBC");
         }
@@ -169,14 +224,22 @@ impl AluOperation for SbcOperation {
     }
 }
 
-pub struct SubOperation;
+pub struct SubOperation{
+    pub register_type: Option<RegisterType>,
+}
+
+impl SubOperation {
+    pub fn new(register_type: &RegisterType) -> Self {
+        Self { register_type: Some(*register_type) }
+    }
+}
 impl AluOperation for SubOperation {
     fn execute(
+        &self,
         fetched_data: ValueEnum,
-        register_type: Option<&RegisterType>,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
-        if register_type.ok_or(anyhow::anyhow!("No register provided for SubOperation"))? != &RegisterType::A {
+        if self.register_type.ok_or(anyhow::anyhow!("No register provided for SubOperation"))? != RegisterType::A {
             anyhow::bail!("Only A register is allowed for SBC");
         }
         let (result, z, n, h, c) = sub_with_carry(cpu_registers.a, fetched_data.try_into()?, 0);

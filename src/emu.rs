@@ -1,8 +1,8 @@
-use std::time::Instant;
+//use std::time::Instant;
 
-use crate::{cpu::CpuContext, ui::UI};
+use crate::cpu::CpuContext;
 
-use minifb::{Key, Scale};
+//use minifb::{Key, Scale};
 
 pub struct EmuContext;
 
@@ -13,6 +13,11 @@ pub struct SharedData {
 
 impl EmuContext {
     pub fn run(&mut self, cpu: &mut CpuContext) {
+        loop {
+            cpu.cpu_step();
+        }
+        /*
+
         let mut ui = UI::new(16 * 8, 24 * 8, Scale::X4);
 
         let mut stat_cpu = Stats::new();
@@ -39,6 +44,7 @@ impl EmuContext {
             elapsed = now.elapsed().subsec_nanos();
             stat_ui.put(elapsed);
         }
+        */
     }
 }
 

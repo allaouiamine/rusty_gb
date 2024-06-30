@@ -1,4 +1,4 @@
-use super::{alu_operations::{AddOperation, AluOperation}, RegisterType};
+use super::{alu_operations::{AddOperation, AluOperation, NoOpearation}, RegisterType};
 
 #[derive(Clone, Copy)]
 pub struct ExecutionPlan {
@@ -99,7 +99,7 @@ pub enum ArithmeticLogicUnitAction {
 impl ArithmeticLogicUnitAction {
     pub fn get_operation(&self) -> Box<dyn AluOperation + 'static> {
         match self {
-            ArithmeticLogicUnitAction::None => todo!(),
+            ArithmeticLogicUnitAction::None => Box::new(NoOpearation::new()),
             ArithmeticLogicUnitAction::Inc(_) => todo!(),
             ArithmeticLogicUnitAction::Inc16(_) => todo!(),
             ArithmeticLogicUnitAction::IncValue => todo!(),

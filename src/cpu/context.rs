@@ -1,8 +1,8 @@
 use crate::bus::Bus;
-use crate::cpu::execution_plan::ArithmeticLogicUnitAction;
 
 use super::execution_plan::FetchAction;
 use super::execution_plan::StoreAction;
+use super::types::InterruptType;
 use super::RegisterType;
 use super::registers::CpuRegisters;
 
@@ -39,7 +39,6 @@ impl<'a> CpuContext<'a> {
             old_pc: 0x100,
             current_opcode: 0,
             halted: false,
-            // stepping: false,
             ticks: 0,
             interrupt_master_enabled: false,
             enabling_ime: false,
@@ -286,7 +285,7 @@ impl<'a> CpuContext<'a> {
 
     fn store_data(&mut self, value: ValueEnum) -> anyhow::Result<()> {
         match self.current_instruction.execution_plan.get_store_actions() {
-            StoreAction::None => todo!("StoreAction::None"),
+            StoreAction::None => {},
             StoreAction::StoreRegister(register_type) => self
                 .cpu_registers
                 .set_register(register_type, value.try_into()?),
@@ -344,16 +343,14 @@ impl<'a> CpuContext<'a> {
         let execution_plan = self.current_instruction.execution_plan;
         let fetched_data = self.fetch_data()?;
 
-        // println!("{}", self);
-        // self.bus.dbg_update();
-        // self.bus.dbg_print();
-        let output_value = match execution_plan.get_arithmetic_logic_unit_actions() {
-            ArithmeticLogicUnitAction::None => fetched_data, // LD instruction for example
-            other => {
-                unimplemented!("Unimplemented action: {:?}", other);
-            }
-        };
-        self.store_data(output_value)
+        println!("{}", self);
+        self.bus.dbg_update();
+        self.bus.dbg_print();
+        let output_data = execution_plan.get_arithmetic_logic_unit_actions().get_operation().execute(fetched_data, &self.cpu_registers)?;
+        self.cpu_registers.set_flags(output_data.z, output_data.n, output_data.h, output_data.c);
+        self.emu_cycles(output_data.additional_cpu_cycles);
+        self.store_data(output_data.value)?;
+        Ok(())
     }
 
     pub fn get_next_pc_value(&mut self) -> u8 {
@@ -396,29 +393,3 @@ const REGISTERS_LOOKUP: [RegisterType; 8] = [
     RegisterType::A,
 ];
 */
-#[derive(PartialEq, Debug)]
-pub enum InterruptType {
-    VBLANK = 1,
-    LCDStat = 2,
-    TIMER = 4,
-    SERIAL = 8,
-    JOYPAD = 16,
-}
-
-impl From<u8> for InterruptType {
-    fn from(value: u8) -> Self {
-        if value & 0x1 != 0 {
-            Self::VBLANK
-        } else if (value >> 1) & 0x1 != 0 {
-            Self::LCDStat
-        } else if (value >> 2) & 0x1 != 0 {
-            Self::TIMER
-        } else if (value >> 3) & 0x1 != 0 {
-            Self::SERIAL
-        } else if (value >> 4) & 0x1 != 0 {
-            Self::JOYPAD
-        } else {
-            unimplemented!();
-        }
-    }
-}

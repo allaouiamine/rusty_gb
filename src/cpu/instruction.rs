@@ -11,11 +11,6 @@ pub struct Instruction<'a> {
     pub parameter: Option<u8>,
 }
 
-impl<'a> Display for Instruction<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        write!(f, "{}", self.instruction_type)
-    }
-}
 
 impl<'i> Default for Instruction<'i> {
     fn default() -> Self {
