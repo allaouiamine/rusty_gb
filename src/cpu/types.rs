@@ -8,7 +8,7 @@ pub struct AluOutput {
     pub c: Option<bool>,
     pub additional_cpu_cycles: usize,
 }
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ValueEnum {
     None,
     SignedData8(i8),

@@ -1,4 +1,4 @@
-use super::{alu_operations::{AddOperation, AluOperation, NoOpearation}, RegisterType};
+use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, SubOperation}, RegisterType};
 
 #[derive(Clone, Copy)]
 pub struct ExecutionPlan {
@@ -59,7 +59,6 @@ pub enum FetchAction {
     FetchRegister16Bits(RegisterType), // Fetch the value of a 16-bit register
     FetchRegister16BitsWithOffset(RegisterType), // Fetch the value of a 16-bit register with
     // an 8-bit offset (signed) value
-    // This is only used in the stack pointer SP
     FetchIndirect(RegisterType), // Fetch the value from the memory address pointed by a 16-bit register
     FetchIndirectZeroPage(RegisterType), // Fetch the value from the memory address pointed by
     // a 0xFF00 + 8-bit register. Only used in the C register
@@ -71,15 +70,13 @@ pub enum FetchAction {
                                                // This is only used in the HL register
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ArithmeticLogicUnitAction {
     None,
-    Inc(RegisterType), // Increment the value of a register A, B, C, D, E, H or L
-    Inc16(RegisterType), // Increment the value of a 16-bit register BC, DE, HL or SP
-    IncValue,
-    Dec(RegisterType), // Decrement the value of a register A, B, C, D, E, H or L
-    Dec16(RegisterType), // Decrement the value of a 16-bit register BC, DE, HL or SP
-    DecValue,
+    Inc, // Increment the value of a register A, B, C, D, E, H or L
+    Inc16, // Increment the value of a 16-bit register BC, DE, HL or SP
+    Dec, // Decrement the value of a register A, B, C, D, E, H or L
+    Dec16, // Decrement the value of a 16-bit register BC, DE, HL or SP
     Add(RegisterType),     // Add the value of a register A, B, C, D, E, H or L
     Add16(RegisterType), // Add the value of a 16-bit register BC, DE, HL or SP
     AddRelative(RegisterType), // Add the value of a 16-bit register with an 8-bit offset
@@ -99,18 +96,16 @@ pub enum ArithmeticLogicUnitAction {
 impl ArithmeticLogicUnitAction {
     pub fn get_operation(&self) -> Box<dyn AluOperation + 'static> {
         match self {
-            ArithmeticLogicUnitAction::None => Box::new(NoOpearation::new()),
-            ArithmeticLogicUnitAction::Inc(_) => todo!(),
-            ArithmeticLogicUnitAction::Inc16(_) => todo!(),
-            ArithmeticLogicUnitAction::IncValue => todo!(),
-            ArithmeticLogicUnitAction::Dec(_) => todo!(),
-            ArithmeticLogicUnitAction::Dec16(_) => todo!(),
-            ArithmeticLogicUnitAction::DecValue => todo!(),
+            ArithmeticLogicUnitAction::None => unimplemented!("ALU None not implemented"),
+            ArithmeticLogicUnitAction::Inc => Box::new(IncOperation::new()),
+            ArithmeticLogicUnitAction::Inc16 => Box::new(IncOperation16::new()),
+            ArithmeticLogicUnitAction::Dec => Box::new(DecOperation::new()),
+            ArithmeticLogicUnitAction::Dec16 => Box::new(DecOperation16::new()),
             ArithmeticLogicUnitAction::Add(register_type) => Box::new(AddOperation::new(register_type)),
-            ArithmeticLogicUnitAction::Add16(_) => todo!(),
-            ArithmeticLogicUnitAction::AddRelative(_) => todo!(),
-            ArithmeticLogicUnitAction::AddWithCarry(_) => todo!(),
-            ArithmeticLogicUnitAction::Sub(_) => todo!(),
+            ArithmeticLogicUnitAction::Add16(register_type) => Box::new(AddOperation16::new(register_type)),
+            ArithmeticLogicUnitAction::AddRelative(register_type) => Box::new(AddRelativeOperation::new(register_type)),
+            ArithmeticLogicUnitAction::AddWithCarry(register_type) => Box::new(AddWithCarryOperation::new(register_type)),
+            ArithmeticLogicUnitAction::Sub(register_type) => Box::new(SubOperation::new(register_type)),
             ArithmeticLogicUnitAction::SubWithCarry(_) => todo!(),
             ArithmeticLogicUnitAction::And(_) => todo!(),
             ArithmeticLogicUnitAction::Xor(_) => todo!(),

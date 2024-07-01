@@ -57,8 +57,6 @@ pub fn sub_with_carry(left: u8, right: u8, carry: u8) -> (u8, bool, bool, bool, 
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::types::ValueEnum;
-
     use super::*;
 
     #[test]

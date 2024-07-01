@@ -86,7 +86,7 @@ impl<'a> Bus<'a> {
         }
         match String::from_utf8(message) {
             Ok(m) => println!("DBG: {}", m),
-            Err(_) => {}
+            Err(r) => println!("DBG: {:?}", r),
         }
     }
 
@@ -100,7 +100,6 @@ impl<'a> Bus<'a> {
 
     pub fn bus_read(&self, address: u16) -> u8 {
         if address < 0x8000 {
-            // RM data
             self.cartridge.cart_read(address)
         } else if address < 0xA000 {
             // character map data

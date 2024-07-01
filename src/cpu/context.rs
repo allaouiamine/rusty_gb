@@ -1,10 +1,14 @@
 use crate::bus::Bus;
+use crate::cpu::execution_plan::ArithmeticLogicUnitAction;
 
 use super::execution_plan::FetchAction;
 use super::execution_plan::StoreAction;
+use super::instruction::ConditionType;
+use super::instruction::InstructionType;
+use super::registers::CpuRegisters;
+use super::registers::Flags;
 use super::types::InterruptType;
 use super::RegisterType;
-use super::registers::CpuRegisters;
 
 use super::instruction::Instruction;
 use super::util::add_relative;
@@ -92,6 +96,8 @@ impl<'a> CpuContext<'a> {
 
         let interrupt_type = InterruptType::from(allowed_interrupts);
 
+        panic!("Interrupt requested: {:?}", interrupt_type);
+
         // if multiple interrupts requested, chose the highest priority, run it and leave the others
         let address: u16 = match interrupt_type {
             InterruptType::VBLANK => 0x40,
@@ -166,20 +172,34 @@ impl<'a> CpuContext<'a> {
     pub fn fetch_instruction(&mut self) {
         let pc: u16 = self.cpu_registers.pc;
         self.current_opcode = self.bus_read(pc);
+        self.current_opcode = self.get_next_pc_value();
 
         self.current_instruction = Instruction::from(self.current_opcode);
-
-        self.cpu_registers.pc += 1;
     }
 
-    pub fn cpu_step(&mut self) -> bool {
+    fn push_pc(&mut self) {
+        self.stack_push16(self.cpu_registers.pc);
+    }
+
+    fn execute_special_instructions(&mut self) {
+        if self.current_instruction.instruction_type == InstructionType::DI {
+            self.interrupt_master_enabled = false;
+        } else if self.current_instruction.instruction_type == InstructionType::CALL {
+            self.push_pc();
+        } else if self.current_instruction.instruction_type == InstructionType::STOP {
+            panic!("STOP instruction called!");
+        }
+    }
+
+    pub fn cpu_step(&mut self) -> anyhow::Result<bool> {
         self.dma_done = false;
         self.last_written_address = None;
 
         self.old_pc = self.cpu_registers.pc;
         if !self.halted {
             self.fetch_instruction();
-            self.execute_current_instruction().unwrap();
+            self.execute_special_instructions();
+            self.execute_current_instruction()?;
         } else {
             self.emu_cycles(1);
             if self.get_interrupt_flags_register() != 0 {
@@ -196,7 +216,7 @@ impl<'a> CpuContext<'a> {
             self.interrupt_master_enabled = true;
         }
 
-        true
+        Ok(true)
     }
 
     fn fetch_data(&mut self) -> anyhow::Result<ValueEnum> {
@@ -220,23 +240,21 @@ impl<'a> CpuContext<'a> {
                     ValueEnum::Data16(self.cpu_registers.get_register_16(register_type_16))
                 }
                 FetchAction::FetchRegister16BitsWithOffset(register_type_16) => {
-                    if self.current_opcode != 0xF8 {
-                        anyhow::bail!("Only used in 0xF8 - 'LD HL,SP+r8'");
-                    }
-                    match register_type_16 {
-                        RegisterType::SP => {
-                            let offset = self.get_next_pc_value() as i8;
-                            let sp_value = self.cpu_registers.sp;
+                    let register_value = if register_type_16 == &RegisterType::PC {
+                        self.cpu_registers.pc + 1
+                    } else {
+                        self.cpu_registers.get_register_16(register_type_16)
+                    };
+                    let offset = self.get_next_pc_value() as i8;
 
-                            let h = Some(check_half_carry_relative(sp_value, offset));
-                            let c = Some(check_carry_relative(sp_value, offset));
-                            let sum = add_relative(sp_value, offset);
+                    let h = Some(check_half_carry_relative(register_value, offset));
+                    let c = Some(check_carry_relative(register_value, offset));
+                    let sum = add_relative(register_value, offset);
 
-                            self.cpu_registers.set_flags(Some(false), Some(false), h, c);
-                            ValueEnum::Data16(sum)
-                        }
-                        _ => anyhow::bail!("Only SP register is allowed to fetch with an offset"),
+                    if self.current_instruction.instruction_type != InstructionType::JR {
+                        self.cpu_registers.set_flags(Some(false), Some(false), h, c);
                     }
+                    ValueEnum::Data16(sum)
                 }
                 FetchAction::FetchIndirect(register_type_16) => {
                     let address = self.cpu_registers.get_register_16(register_type_16);
@@ -285,7 +303,7 @@ impl<'a> CpuContext<'a> {
 
     fn store_data(&mut self, value: ValueEnum) -> anyhow::Result<()> {
         match self.current_instruction.execution_plan.get_store_actions() {
-            StoreAction::None => {},
+            StoreAction::None => {}
             StoreAction::StoreRegister(register_type) => self
                 .cpu_registers
                 .set_register(register_type, value.try_into()?),
@@ -346,11 +364,41 @@ impl<'a> CpuContext<'a> {
         println!("{}", self);
         self.bus.dbg_update();
         self.bus.dbg_print();
-        let output_data = execution_plan.get_arithmetic_logic_unit_actions().get_operation().execute(fetched_data, &self.cpu_registers)?;
-        self.cpu_registers.set_flags(output_data.z, output_data.n, output_data.h, output_data.c);
-        self.emu_cycles(output_data.additional_cpu_cycles);
-        self.store_data(output_data.value)?;
-        Ok(())
+        let data_to_store = if execution_plan.get_arithmetic_logic_unit_actions()
+            == &ArithmeticLogicUnitAction::None
+        {
+            fetched_data
+        } else {
+            let output_data = execution_plan
+                .get_arithmetic_logic_unit_actions()
+                .get_operation()
+                .execute(fetched_data, &self.cpu_registers)?;
+            self.cpu_registers.set_flags(
+                output_data.z,
+                output_data.n,
+                output_data.h,
+                output_data.c,
+            );
+            self.emu_cycles(output_data.additional_cpu_cycles);
+            output_data.value
+        };
+        if self.check_condition() {
+            if self.current_instruction.instruction_type == InstructionType::RET {
+                println!(
+                    "RET instruction called!, returning to address: {:04X}",
+                    self.cpu_registers.sp
+                );
+                let address = ValueEnum::Data16(self.stack_pop16());
+                self.store_data(address)
+            } else if self.current_instruction.instruction_type == InstructionType::CALL {
+                self.push_pc();
+                self.store_data(data_to_store)
+            } else {
+                self.store_data(data_to_store)
+            }
+        } else {
+            Ok(())
+        }
     }
 
     pub fn get_next_pc_value(&mut self) -> u8 {
@@ -378,7 +426,26 @@ impl<'a> CpuContext<'a> {
         }
     }
 
-    pub fn execute(&mut self) {}
+    fn check_condition(&mut self) -> bool {
+        if self.current_instruction.condition == ConditionType::None {
+            return true;
+        }
+        let z = self.cpu_registers.f.get_flag(Flags::Z);
+        let c = self.cpu_registers.f.get_flag(Flags::C);
+
+        let condition = match self.current_instruction.condition {
+            ConditionType::C => c,
+            ConditionType::Z => z,
+            ConditionType::NC => !c,
+            ConditionType::NZ => !z,
+            ConditionType::None => true,
+        };
+
+        if condition {
+            self.emu_cycles(1);
+        }
+        condition
+    }
 }
 
 /*

@@ -85,7 +85,7 @@ impl Timer {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::context::InterruptType;
+    use crate::cpu::types::InterruptType;
 
     use super::Timer;
     #[test]

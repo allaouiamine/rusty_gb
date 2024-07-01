@@ -1,6 +1,5 @@
 use super::{
-    execution_plan::{ArithmeticLogicUnitAction, ExecutionPlan, FetchAction, StoreAction},
-    Instruction, InstructionType, RegisterType
+    execution_plan::{ArithmeticLogicUnitAction, ExecutionPlan, FetchAction, StoreAction}, instruction::ConditionType, Instruction, InstructionType, RegisterType
 };
 
 impl<'i> From<u8> for Instruction<'i> {
@@ -36,7 +35,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::BC),
-                    ArithmeticLogicUnitAction::Inc16(RegisterType::BC),
+                    ArithmeticLogicUnitAction::Inc16,
                     StoreAction::StoreRegister16Bits(RegisterType::BC),
                 ),
                 ..Default::default()
@@ -46,7 +45,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::B),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::B),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::B),
                 ),
                 ..Default::default()
@@ -56,7 +55,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::B),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::B),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::B),
                 ),
                 ..Default::default()
@@ -107,7 +106,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::BC),
-                    ArithmeticLogicUnitAction::Dec16(RegisterType::BC),
+                    ArithmeticLogicUnitAction::Dec16,
                     StoreAction::StoreRegister16Bits(RegisterType::BC),
                 ),
                 ..Default::default()
@@ -117,7 +116,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::C),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::C),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::C),
                 ),
                 ..Default::default()
@@ -127,7 +126,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::C),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::C),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::C),
                 ),
                 ..Default::default()
@@ -144,7 +143,11 @@ impl<'i> From<u8> for Instruction<'i> {
             },
             0x0F => unimplemented!("RRCA"),
 
-            0x10 => unimplemented!("STOP"),
+            0x10 => Self {
+                description: "STOP 0",
+                instruction_type: InstructionType::STOP,
+                ..Default::default()
+            },
 
             0x11 => Self {
                 description: "LD DE,d16",
@@ -172,7 +175,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::DE),
-                    ArithmeticLogicUnitAction::Inc16(RegisterType::DE),
+                    ArithmeticLogicUnitAction::Inc16,
                     StoreAction::StoreRegister16Bits(RegisterType::DE),
                 ),
                 ..Default::default()
@@ -183,7 +186,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::D),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::D),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::D),
                 ),
                 ..Default::default()
@@ -194,7 +197,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::D),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::D),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::D),
                 ),
                 ..Default::default()
@@ -213,7 +216,18 @@ impl<'i> From<u8> for Instruction<'i> {
 
             0x17 => unimplemented!("RLA"),
 
-            0x18 => unimplemented!("JR r8"),
+            0x18 => Self {
+                // This is equivalent to LD PC, PC + R8
+                description: "JR r8",
+                instruction_type: InstructionType::JR,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister16BitsWithOffset(RegisterType::PC),
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
 
             0x19 => Self {
                 description: "ADD HL,DE",
@@ -242,7 +256,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::DE),
-                    ArithmeticLogicUnitAction::Dec16(RegisterType::DE),
+                    ArithmeticLogicUnitAction::Dec16,
                     StoreAction::StoreRegister16Bits(RegisterType::DE),
                 ),
                 ..Default::default()
@@ -253,7 +267,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::E),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::E),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::E),
                 ),
                 ..Default::default()
@@ -264,7 +278,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::E),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::E),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::E),
                 ),
                 ..Default::default()
@@ -282,7 +296,19 @@ impl<'i> From<u8> for Instruction<'i> {
             },
 
             0x1F => unimplemented!("RRA"),
-            0x20 => unimplemented!("JR NZ,r8"),
+            0x20 => Self {
+                // JR NZ, R8 is equivalent to LD PC, PC + R8 if the zero flag is not set
+                description: "JR NZ,r8",
+                instruction_type: InstructionType::JR,
+                condition: ConditionType::NZ,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister16BitsWithOffset(RegisterType::PC),
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0x21 => Self {
                 description: "LD HL,d16",
                 instruction_type: InstructionType::LD,
@@ -308,7 +334,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::HL),
-                    ArithmeticLogicUnitAction::Inc16(RegisterType::HL),
+                    ArithmeticLogicUnitAction::Inc16,
                     StoreAction::StoreRegister16Bits(RegisterType::HL),
                 ),
                 ..Default::default()
@@ -319,7 +345,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::H),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::H),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::H),
                 ),
                 ..Default::default()
@@ -330,7 +356,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::H),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::H),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::H),
                 ),
                 ..Default::default()
@@ -375,7 +401,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::HL),
-                    ArithmeticLogicUnitAction::Dec16(RegisterType::HL),
+                    ArithmeticLogicUnitAction::Dec16,
                     StoreAction::StoreRegister16Bits(RegisterType::HL),
                 ),
                 ..Default::default()
@@ -386,7 +412,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::L),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::L),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::L),
                 ),
                 ..Default::default()
@@ -397,7 +423,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::L),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::L),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::L),
                 ),
                 ..Default::default()
@@ -441,7 +467,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::SP),
-                    ArithmeticLogicUnitAction::Inc16(RegisterType::SP),
+                    ArithmeticLogicUnitAction::Inc16,
                     StoreAction::StoreRegister16Bits(RegisterType::SP),
                 ),
                 ..Default::default()
@@ -452,7 +478,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchIndirect(RegisterType::HL),
-                    ArithmeticLogicUnitAction::IncValue,
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreIndirect(RegisterType::HL),
                 ),
                 ..Default::default()
@@ -462,7 +488,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchIndirect(RegisterType::HL),
-                    ArithmeticLogicUnitAction::DecValue,
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreIndirect(RegisterType::HL),
                 ),
                 ..Default::default()
@@ -510,7 +536,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::SP),
-                    ArithmeticLogicUnitAction::Dec16(RegisterType::SP),
+                    ArithmeticLogicUnitAction::Dec16,
                     StoreAction::StoreRegister16Bits(RegisterType::SP),
                 ),
                 ..Default::default()
@@ -521,7 +547,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::INC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::A),
-                    ArithmeticLogicUnitAction::Inc(RegisterType::A),
+                    ArithmeticLogicUnitAction::Inc,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -532,7 +558,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::DEC,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::A),
-                    ArithmeticLogicUnitAction::Dec(RegisterType::A),
+                    ArithmeticLogicUnitAction::Dec,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1950,10 +1976,32 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xC0 => unimplemented!("RET NZ"),
+            0xC0 => Self {
+                description: "RET NZ",
+                instruction_type: InstructionType::RET,
+                condition: ConditionType::NZ,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xC1 => unimplemented!("POP BC"),
             0xC2 => unimplemented!("JP NZ,a16"),
-            0xC3 => unimplemented!("JP a16"),
+            0xC3 => Self {
+                // JP a16 is equivalent to LD PC, d16
+                // The next two bytes after the instruction bytecode 0xC3 constitute the jump address
+                description: "JP a16",
+                instruction_type: InstructionType::JP,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits, // no FetchAddress becaue we are not fetching the
+                                                  // value stored in that address
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xC4 => unimplemented!("CALL NZ,a16"),
             0xC5 => unimplemented!("PUSH BC"),
 
@@ -1970,11 +2018,34 @@ impl<'i> From<u8> for Instruction<'i> {
 
             0xC7 => unimplemented!("RST 00H"),
             0xC8 => unimplemented!("RET Z"),
-            0xC9 => unimplemented!("RET"),
+            0xC9 => Self {
+                // RET is equivalent to POP PC, which is equivalent to LD PC, (SP)
+                description: "RET",
+                instruction_type: InstructionType::RET,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0xCA => unimplemented!("JP Z,a16"),
             0xCB => unimplemented!("PREFIX CB"),
             0xCC => unimplemented!("CALL Z,a16"),
-            0xCD => unimplemented!("CALL a16"),
+            0xCD => Self {
+                // CALL a16 is equivalent to PUSH PC; JP a16(which is equivalent to LD PC D16
+                // The next two bytes after the instruction bytecode 0xCD constitute the call address
+                description: "CALL a16",
+                instruction_type: InstructionType::CALL,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits, // no FetchAddress becaue we are not fetching the
+                                                  // value stored in that address
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
 
             0xCE => Self {
                 description: "ADC A,d8",
@@ -2128,7 +2199,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xF3 => unimplemented!("DI"),
+            0xF3 => Self {
+                description: "DI",
+                instruction_type: InstructionType::DI,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xF4 => unimplemented!("INVALID"),
             0xF5 => unimplemented!("PUSH AF"),
 
@@ -2196,3 +2276,4 @@ impl<'i> From<u8> for Instruction<'i> {
         }
     }
 }
+

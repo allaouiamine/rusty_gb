@@ -24,7 +24,7 @@ impl<'i> Default for Instruction<'i> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ConditionType {
     None,
     NZ,

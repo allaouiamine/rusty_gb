@@ -4,6 +4,7 @@ use std::fmt::Result as FmtResult;
 
 use crate::cpu::execution_plan::FetchAction;
 use crate::cpu::execution_plan::StoreAction;
+use crate::cpu::instruction::ConditionType;
 
 use super::instruction::Instruction;
 use super::registers::CpuRegisters;
@@ -48,12 +49,13 @@ impl Display for CpuRegisters {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
         write!(
             f,
-            "A: {:02X} F: {} BC: {} DE: {} HL: {}",
+            "A: {:02X} F: {} BC: {:04X} DE: {:04X} HL: {:04X} SP: {:04X}",
             self.a,
             self.f,
             self.get_register_16(&RegisterType::BC),
             self.get_register_16(&RegisterType::DE),
             self.get_register_16(&RegisterType::HL),
+            self.sp
         )
     }
 }
@@ -61,6 +63,19 @@ impl Display for CpuRegisters {
 impl<'a> Display for Instruction<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
         write!(f, "{}", self.instruction_type)
+    }
+}
+
+impl Display for ConditionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        let condition_str = match *self {
+            Self::None => "",
+            Self::NZ => "NZ",
+            Self::Z => "Z",
+            Self::NC => "NC",
+            Self::C => "C",
+        };
+        write!(f, "{}", condition_str)
     }
 }
 
@@ -92,7 +107,11 @@ impl<'a> Display for CpuContext<'a> {
                 Some(format!("{}", register_type))
             },
             FetchAction::FetchRegister16BitsWithOffset(register_type) => {
-                Some(format!("{}+${:02X}", register_type, self.bus.bus_read(self.old_pc + 1)))
+                if register_type == &RegisterType::PC {
+                    Some(format!("${:02X}", self.bus.bus_read(self.old_pc + 1)))
+                } else {
+                    Some(format!("{}+${:02X}", register_type, self.bus.bus_read(self.old_pc + 1)))
+                }
             },
             FetchAction::FetchIndirect(register_type) => {
                 Some(format!("({})", register_type))
@@ -109,12 +128,15 @@ impl<'a> Display for CpuContext<'a> {
             },
         };
 
-        let operand_2 = match self.current_instruction.execution_plan.get_store_actions() {
+        let operand_2 = match self.current_instruction.execution_plan.get_store_actions() { 
             StoreAction::None => None,
             StoreAction::StoreRegister(register_type)|
             StoreAction::StoreRegister16Bits(register_type) => {
-                Some(format!("{}", register_type))
-
+                if register_type == &RegisterType::PC {
+                    None
+                } else {
+                    Some(format!("{}", register_type))
+                }
             },
             StoreAction::StoreIndirect(register_type) => {
                 Some(format!("({})", register_type))
@@ -137,17 +159,22 @@ impl<'a> Display for CpuContext<'a> {
                 let lo = self.bus.bus_read(self.old_pc + 1);
                 Some(format!("($FF{:02X})", lo))
             },
+
         };
-        if let Some(operand_1) = operand_1 {
-            instruction_str = format!("{} {}", instruction_str, operand_1);
-        }
         if let Some(operand_2) = operand_2 {
             instruction_str = format!("{} {}", instruction_str, operand_2);
         }
+
+        if self.current_instruction.condition != ConditionType::None {
+            instruction_str = format!("{} {}", instruction_str, self.current_instruction.condition);
+        }
+        if let Some(operand_1) = operand_1 {
+            instruction_str = format!("{} {}", instruction_str, operand_1);
+        }
         write!(
             f,
-            "{:8X} - {:04X}: {:12} ({:02X} {:02X} {:02X}) {}",
-            self.ticks,
+            "{:08X} - {:04X}: {:12} ({:02X} {:02X} {:02X}) {}",
+            self.ticks / 4,
             self.old_pc,
             instruction_str,
             self.current_opcode,

@@ -14,7 +14,7 @@ pub struct SharedData {
 impl EmuContext {
     pub fn run(&mut self, cpu: &mut CpuContext) {
         loop {
-            cpu.cpu_step();
+            cpu.cpu_step().unwrap();
         }
         /*
 

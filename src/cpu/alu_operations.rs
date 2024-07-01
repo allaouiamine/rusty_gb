@@ -16,31 +16,6 @@ pub trait AluOperation {
     ) -> anyhow::Result<AluOutput>;
 }
 
-pub struct NoOpearation;
-
-impl NoOpearation {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl AluOperation for NoOpearation {
-    fn execute(
-        &self,
-        _fetched_data: ValueEnum,
-        _cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
-        Ok(AluOutput {
-            value: ValueEnum::None,
-            z: None,
-            n: None,
-            h: None,
-            c: None,
-            additional_cpu_cycles: 0,
-        })
-    }
-}
-
 pub struct AddOperation{
     pub register_type: Option<RegisterType>,
 }
@@ -154,22 +129,22 @@ impl AluOperation for AddRelativeOperation {
     }
 }
 
-pub struct AndOperation16{
+pub struct AddOperation16{
     pub register_type: Option<RegisterType>,
 }
-impl AndOperation16 {
+impl AddOperation16 {
     pub fn new(register_type: &RegisterType) -> Self {
         Self { register_type: Some(*register_type) }
     }
 }
-impl AluOperation for AndOperation16 {
+impl AluOperation for AddOperation16 {
     fn execute(
         &self,
         fetched_data: ValueEnum,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         let register_value = cpu_registers.get_register_16(
-            &self.register_type.ok_or(anyhow::anyhow!("No register provided for AndOperation16"))?,
+            &self.register_type.ok_or(anyhow::anyhow!("No register provided for AddOperation16"))?,
         );
         let fetched_data: u16 = fetched_data.try_into()?;
         let sum = register_value.wrapping_add(fetched_data);
@@ -251,5 +226,133 @@ impl AluOperation for SubOperation {
             c: Some(c),
             additional_cpu_cycles: 0,
         })
+    }
+}
+
+pub struct IncOperation;
+
+impl IncOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for IncOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        _: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let (result, z, _, h, _) = add_with_carry(fetched_data.try_into()?, 1, 0);
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(z),
+            n: Some(false),
+            h: Some(h),
+            c: None,
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct IncOperation16;
+
+impl IncOperation16 {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for IncOperation16 {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        _: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+
+        let result: u16 = fetched_data.try_into()?;
+        Ok(AluOutput {
+            value: ValueEnum::Data16(result.wrapping_add(1)),
+            z: None,
+            n: None,
+            h: None,
+            c: None,
+            additional_cpu_cycles: 1,
+        })
+    }
+}
+
+
+pub struct DecOperation;
+
+impl DecOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for DecOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        _: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let (result, z, _, h, _) = sub_with_carry(fetched_data.try_into()?, 1, 0);
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(z),
+            n: Some(true),
+            h: Some(h),
+            c: None,
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct DecOperation16;
+impl DecOperation16 {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+impl AluOperation for DecOperation16 {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        _: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let result: u16 = fetched_data.try_into()?;
+        Ok(AluOutput {
+            value: ValueEnum::Data16(result.wrapping_sub(1)),
+            z: None,
+            n: None,
+            h: None,
+            c: None,
+            additional_cpu_cycles: 1,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inc_set_half_carry() {
+        let inc = IncOperation::new();
+        let cpu_registers = CpuRegisters::new();
+        let fetched_data = ValueEnum::Data8(0x0F);
+        let alu_output = inc.execute(fetched_data, &cpu_registers).unwrap();
+        assert_eq!(alu_output.h, Some(true));
+        assert_eq!(alu_output.value, ValueEnum::Data8(0x10));
+    }
+    #[test]
+    fn test_inc_reset_half_carry() {
+        let inc = IncOperation::new();
+        let cpu_registers = CpuRegisters::new();
+        let fetched_data = ValueEnum::Data8(0x10);
+        let alu_output = inc.execute(fetched_data, &cpu_registers).unwrap();
+        assert_eq!(alu_output.h, Some(false));
+        assert_eq!(alu_output.value, ValueEnum::Data8(0x11));
     }
 }

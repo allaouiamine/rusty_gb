@@ -1,6 +1,7 @@
-use super::{RegisterType, util::combine};
+use super::{util::combine, RegisterType};
 use std::fmt::{Display, Result as FmtResult};
 
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Flags {
     C = 4,
     H = 5,
@@ -26,7 +27,7 @@ impl FlagsRegister {
     }
 
     pub fn set_flag(&mut self, flag: Flags, flag_value: bool) {
-        let mask: u8 = 1 << (flag as u8);
+        let mask: u8 = 1 << (flag.clone() as u8);
 
         if flag_value {
             self.register |= mask;
@@ -73,10 +74,9 @@ pub struct CpuRegisters {
     pub sp: u16, // stack pointer
 }
 
-
 impl CpuRegisters {
     pub fn new() -> Self {
-        Self {
+        let mut regs = Self {
             a: 0x01,
             f: FlagsRegister::new(),
             b: 0,
@@ -87,7 +87,12 @@ impl CpuRegisters {
             l: 0x4D,
             pc: 0x100,
             sp: 0xFFFE,
-        }
+        };
+        regs.f.set_flag(Flags::Z, false);
+        regs.f.set_flag(Flags::N, false);
+        regs.f.set_flag(Flags::H, false);
+        regs.f.set_flag(Flags::C, false);
+        regs
     }
 
     pub fn set_flags(
