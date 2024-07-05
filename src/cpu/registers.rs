@@ -11,7 +11,7 @@ pub enum Flags {
 
 #[derive(Debug, Clone)]
 pub struct FlagsRegister {
-    register: u8,
+    pub register: u8,
 }
 
 impl FlagsRegister {
@@ -24,6 +24,14 @@ impl FlagsRegister {
     pub fn get_flag(&self, flag: Flags) -> bool {
         let mask = 1 << (flag as u8);
         self.register & mask == mask
+    }
+
+    pub fn get_flag_as_u8(&self, flag: Flags) -> u8 {
+        if self.get_flag(flag) {
+            1
+        } else {
+            0
+        }
     }
 
     pub fn set_flag(&mut self, flag: Flags, flag_value: bool) {

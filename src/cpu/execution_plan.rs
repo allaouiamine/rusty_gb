@@ -1,6 +1,6 @@
-use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, SubOperation}, RegisterType};
+use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ExecutionPlan {
     fetch_action: FetchAction,
     arithmetic_logic_unit_actions: ArithmeticLogicUnitAction,
@@ -42,7 +42,7 @@ impl Default for ExecutionPlan {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum FetchAction {
     // No action
     None,
@@ -68,6 +68,7 @@ pub enum FetchAction {
     FetchIndirectAndDecrement(RegisterType), // Fetch the value from the memory address pointed by
                                                // a 16-bit register and decrement the register
                                                // This is only used in the HL register
+    FetchStack, // Fetch the value from the stack --> POP
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,10 +87,11 @@ pub enum ArithmeticLogicUnitAction {
     SubWithCarry(RegisterType), // Subtract the value of a register A, B, C, D, E, H or L with
     // carry
 
-    // Logical operations
+    // Bitwise operations
+    Rra, // Rotate the value of register A to the right through the carry flag
     And(RegisterType), // Logical AND the value of a register A, B, C, D, E, H or L with register A
-    Xor(RegisterType), // Logical XOR the value of a register A, B, C, D, E, H or L with register A
-    Or(RegisterType),  // Logical OR the value of a register A, B, C, D, E, H or L with register A
+    Xor, // Logical XOR the value of a register A, B, C, D, E, H or L with register A
+    Or,  // Logical OR the value of a register A, B, C, D, E, H or L with register A
     Cp(RegisterType),  // Compare the value of a register A, B, C, D, E, H or L with register A
 }
 
@@ -107,9 +109,10 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::AddWithCarry(register_type) => Box::new(AddWithCarryOperation::new(register_type)),
             ArithmeticLogicUnitAction::Sub(register_type) => Box::new(SubOperation::new(register_type)),
             ArithmeticLogicUnitAction::SubWithCarry(_) => todo!(),
+            ArithmeticLogicUnitAction::Rra => Box::new(RraOperation::new()),
             ArithmeticLogicUnitAction::And(_) => todo!(),
-            ArithmeticLogicUnitAction::Xor(_) => todo!(),
-            ArithmeticLogicUnitAction::Or(_) => todo!(),
+            ArithmeticLogicUnitAction::Xor => Box::new(XorOperation::new()),
+            ArithmeticLogicUnitAction::Or => Box::new(OrOperation::new()),
             ArithmeticLogicUnitAction::Cp(_) => todo!(),
         }
     }
@@ -121,6 +124,7 @@ pub enum StoreAction {
     None,
     StoreRegister(RegisterType), // Store the result to an 8-bit register: A, B, C, D, E, H or L
     StoreRegister16Bits(RegisterType), // Store the result to a 16-bit register: AF, BC, DE, HL, SP, PC
+    StoreStack, // Store the result to the stack --> PUSH
     StoreIndirect(RegisterType),       // Store the result to the memory address pointed by a
     // 16-bit register
     StoreIndirectZeroPage(RegisterType), // Store the result to the memory address pointed by

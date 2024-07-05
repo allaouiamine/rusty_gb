@@ -1,6 +1,6 @@
-use std::{env, process::exit};
+use std::{env, process::exit, sync::{Arc, Mutex}};
 
-use rusty_gb::{cpu::CpuContext, emu::EmuContext};
+use rusty_gb::{bus::GbBus, cpu::CpuContext, emu::EmuContext};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -9,6 +9,7 @@ fn main() {
         exit(1);
     }
 
-    let mut cpu_context = CpuContext::new(&args[1][..]);
+    let bus = Arc::new(Mutex::new(GbBus::new(args[1].clone())));
+    let mut cpu_context = CpuContext::new(bus);
     EmuContext.run(&mut cpu_context);
 }

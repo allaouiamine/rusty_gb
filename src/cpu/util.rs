@@ -75,8 +75,8 @@ mod tests {
 
     #[test]
     fn test_add_with_carry() {
-        let (result, z, n, h, c) = add_with_carry(0x16, 0x35, 0);
-        assert_eq!(result, 0x4b);
+        let (result, z, n, h, c) = add_with_carry(0x16, 0x39, 0);
+        assert_eq!(result, 0x4F);
         assert_eq!(z, false);
         assert_eq!(h, false);
         assert_eq!(c, false);
@@ -85,8 +85,8 @@ mod tests {
 
     #[test]
     fn test_add_with_carry_half_carry() {
-        let (result, z, n, h, c) = add_with_carry(0x16, 0x35, 1);
-        assert_eq!(result, 0x4c);
+        let (result, z, n, h, c) = add_with_carry(0x16, 0x39, 1);
+        assert_eq!(result, 0x50);
         assert_eq!(z, false);
         assert_eq!(h, true);
         assert_eq!(c, false);
@@ -117,7 +117,7 @@ mod tests {
         let (result, z, n, h, c) = sub_with_carry(0x16, 0x15, 0);
         assert_eq!(result, 0x1);
         assert_eq!(z, false);
-        assert_eq!(h, true);
+        assert_eq!(h, false);
         assert_eq!(c, false);
         assert_eq!(n, true);
     }

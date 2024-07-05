@@ -16,12 +16,21 @@ FFFF	FFFF	Interrupt Enable register (IE)
 
 use std::{thread, time::Duration};
 
-use crate::{cartridge::Cartridge, dma::DMA, io::IO, ppu::PPU, ram::RamContext};
+use crate::{cartridge::Cartridge, cpu::types::InterruptType, dma::DMA, io::IO, ppu::PPU, ram::RamContext};
 
 // use crate::ram::RamContext;
 
-pub struct Bus<'a> {
-    cartridge: Cartridge<'a>,
+pub trait Bus {
+    fn bus_read(&self, address: u16) -> u8;
+    fn bus_write(&mut self, address: u16, value: u8);
+    fn dbg_update(&mut self);
+    fn dbg_print(&self);
+    fn timer_tick(&mut self) -> Option<InterruptType>;
+    fn dma_tick(&mut self) -> bool;
+}
+
+pub struct GbBus {
+    cartridge: Cartridge,
     ram: RamContext,
     pub io: IO,
     interrupt_enable_register: u8,
@@ -34,71 +43,8 @@ pub struct Bus<'a> {
     dbg_message_size: usize,
 }
 
-impl<'a> Bus<'a> {
-    pub fn new(rom_file: &'a str) -> Self {
-        println!("Starting gb emulator with rom file: {}", rom_file);
-
-        // load the cartridge
-        let cartridge = Cartridge::load(rom_file);
-
-        // initialize the RAM
-        let ram: RamContext = RamContext::new();
-
-        let io = IO::new();
-
-        let ppu = PPU::new();
-
-        let dma = DMA::new();
-
-        Self {
-            cartridge,
-            ram,
-            io,
-            interrupt_enable_register: 0,
-            ppu,
-            dma,
-            dbg_message: [0; 1024],
-            dbg_message_size: 0,
-        }
-    }
-
-    pub fn dbg_update(&mut self) {
-        if self.bus_read(0xFF02) == 0x81 {
-            self.dbg_message[self.dbg_message_size] = self.bus_read(0xFF01);
-
-            self.dbg_message_size += 1;
-
-            self.bus_write8(0xFF02, 0);
-        }
-    }
-
-    pub fn dbg_print(&self) {
-        let mut message: Vec<u8> = Vec::new();
-
-        for c in self.dbg_message {
-            if c != 0 {
-                message.push(c);
-            }
-        }
-
-        if message.len() == 0 {
-            return;
-        }
-        match String::from_utf8(message) {
-            Ok(m) => println!("DBG: {}", m),
-            Err(r) => println!("DBG: {:?}", r),
-        }
-    }
-
-    pub fn get_ie_register(&self) -> u8 {
-        self.interrupt_enable_register
-    }
-
-    fn set_ie_register(&mut self, value: u8) {
-        self.interrupt_enable_register = value;
-    }
-
-    pub fn bus_read(&self, address: u16) -> u8 {
+impl Bus for GbBus {
+    fn bus_read(&self, address: u16) -> u8 {
         if address < 0x8000 {
             self.cartridge.cart_read(address)
         } else if address < 0xA000 {
@@ -129,20 +75,14 @@ impl<'a> Bus<'a> {
             self.io.io_read(address)
         } else if address == 0xFFFF {
             // CPU interrupt enable register (IE)
-            self.get_ie_register()
+            self.interrupt_enable_register
         } else {
             // High RAM (HRAM)
             self.ram.hram_read(address)
         }
     }
 
-    pub fn bus_read16(&self, address: u16) -> u16 {
-        let lo = self.bus_read(address) as u16;
-        let hi = self.bus_read(address + 1) as u16;
-        lo | (hi << 8)
-    }
-
-    pub fn bus_write8(&mut self, address: u16, value: u8) {
+    fn bus_write(&mut self, address: u16, value: u8) {
         if address < 0x8000 {
             // ROM data
             self.cartridge.cart_write(address, value);
@@ -173,19 +113,45 @@ impl<'a> Bus<'a> {
             self.io.io_write(address, value)
         } else if address == 0xFFFF {
             // CPU interrupt enable register (IE)
-            self.set_ie_register(value);
+            self.interrupt_enable_register = value;
         } else {
             // High RAM (HRAM)
             self.ram.hram_write(address, value);
         }
     }
+    fn dbg_update(&mut self) {
+        if self.bus_read(0xFF02) == 0x81 {
+            self.dbg_message[self.dbg_message_size] = self.bus_read(0xFF01);
 
-    pub fn bus_write16(&mut self, address: u16, value: u16) {
-        self.bus_write8(address, value as u8);
-        self.bus_write8(address + 1, (value >> 8) as u8);
+            self.dbg_message_size += 1;
+
+            self.bus_write(0xFF02, 0);
+        }
     }
 
-    pub fn dma_tick(&mut self) -> bool {
+    fn dbg_print(&self) {
+        let mut message: Vec<u8> = Vec::new();
+
+        for c in self.dbg_message {
+            if c != 0 {
+                message.push(c);
+            }
+        }
+
+        if message.len() == 0 {
+            return;
+        }
+        match String::from_utf8(message) {
+            Ok(m) => println!("DBG: {}", m),
+            Err(_) => {},
+        }
+    }
+
+    fn timer_tick(&mut self) -> Option<InterruptType>{
+        self.io.timer.timer_tick()
+    }
+
+    fn dma_tick(&mut self) -> bool {
         if !self.dma.active {
             return false;
         }
@@ -213,6 +179,36 @@ impl<'a> Bus<'a> {
             false
         }
     }
+}
+
+impl GbBus {
+    pub fn new(rom_file: String) -> Self {
+        println!("Starting gb emulator with rom file: {}", rom_file);
+
+        // load the cartridge
+        let cartridge = Cartridge::load(rom_file);
+
+        // initialize the RAM
+        let ram: RamContext = RamContext::new();
+
+        let io = IO::new();
+
+        let ppu = PPU::new();
+
+        let dma = DMA::new();
+
+        Self {
+            cartridge,
+            ram,
+            io,
+            interrupt_enable_register: 0,
+            ppu,
+            dma,
+            dbg_message: [0; 1024],
+            dbg_message_size: 0,
+        }
+    }
+
     pub fn fetch_tile(&self, tile_number: usize) -> [u8; 16] {
         if tile_number > 384 {
             panic!("Maximum tiles supported: {}", 384);

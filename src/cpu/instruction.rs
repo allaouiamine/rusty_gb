@@ -3,6 +3,7 @@ use std::fmt::{Formatter, Result as FmtResult};
 
 use super::execution_plan::ExecutionPlan;
 
+#[derive(Debug)]
 pub struct Instruction<'a> {
     pub description: &'a str,
     pub instruction_type: InstructionType,

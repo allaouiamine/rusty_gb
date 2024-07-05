@@ -333,6 +333,87 @@ impl AluOperation for DecOperation16 {
     }
 }
 
+pub struct RraOperation;
+
+impl RraOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for RraOperation {
+    fn execute(
+        &self,
+        _: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let carry = cpu_registers.f.get_flag_as_u8(Flags::C);
+        let result = (cpu_registers.a >> 1) | (carry << 7);
+        let c = cpu_registers.a & 0x01 == 1;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(false),
+            n: Some(false),
+            h: Some(false),
+            c: Some(c),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct OrOperation;
+
+impl OrOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for OrOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let data: u8 = fetched_data.try_into()?;
+        let result = cpu_registers.a | data;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(result == 0),
+            n: Some(false),
+            h: Some(false),
+            c: Some(false),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct XorOperation;
+impl XorOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for XorOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let data: u8 = fetched_data.try_into()?;
+        let result = cpu_registers.a^ data;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(result == 0),
+            n: Some(false),
+            h: Some(false),
+            c: Some(false),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

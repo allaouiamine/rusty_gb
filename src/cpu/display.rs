@@ -82,25 +82,26 @@ impl Display for ConditionType {
 impl<'a> Display for CpuContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
         let mut instruction_str = format!("{}", self.current_instruction);
+        let bus = self.bus.lock().unwrap();
 
 
         let operand_1 = match self.current_instruction.execution_plan.get_fetch_action()  {
-            FetchAction::None => None,
+            FetchAction::None|FetchAction::FetchStack => None,
             FetchAction::FetchData|FetchAction::FetchSignedData => {
-                Some(format!("${:02X}", self.bus.bus_read(self.old_pc + 1)))
+                Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
             },
             FetchAction::FetchData16Bits => {
-                let lo = self.bus.bus_read(self.old_pc + 1);
-                let hi = self.bus.bus_read(self.old_pc + 2);
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("${:04X}", (lo as u16) | ((hi as u16) << 8)))
             },
             FetchAction::FetchAddress => {
-                let lo = self.bus.bus_read(self.old_pc + 1);
-                let hi = self.bus.bus_read(self.old_pc + 2);
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
             },
             FetchAction::FetchAddressZeroPage => {
-                let lo = self.bus.bus_read(self.old_pc + 1);
+                let lo = bus.bus_read(self.old_pc + 1);
                 Some(format!("$FF({:02X})", lo))
             },
             FetchAction::FetchRegister(register_type)|FetchAction::FetchRegister16Bits(register_type) => {
@@ -108,9 +109,9 @@ impl<'a> Display for CpuContext<'a> {
             },
             FetchAction::FetchRegister16BitsWithOffset(register_type) => {
                 if register_type == &RegisterType::PC {
-                    Some(format!("${:02X}", self.bus.bus_read(self.old_pc + 1)))
+                    Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
                 } else {
-                    Some(format!("{}+${:02X}", register_type, self.bus.bus_read(self.old_pc + 1)))
+                    Some(format!("{}+${:02X}", register_type, bus.bus_read(self.old_pc + 1)))
                 }
             },
             FetchAction::FetchIndirect(register_type) => {
@@ -129,7 +130,7 @@ impl<'a> Display for CpuContext<'a> {
         };
 
         let operand_2 = match self.current_instruction.execution_plan.get_store_actions() { 
-            StoreAction::None => None,
+            StoreAction::None|StoreAction::StoreStack => None,
             StoreAction::StoreRegister(register_type)|
             StoreAction::StoreRegister16Bits(register_type) => {
                 if register_type == &RegisterType::PC {
@@ -151,12 +152,12 @@ impl<'a> Display for CpuContext<'a> {
                 Some(format!("({}-)", register_type))
             },
             StoreAction::StoreAddress|StoreAction::StoreAddress16Bits => {
-                let lo = self.bus.bus_read(self.old_pc + 1);
-                let hi = self.bus.bus_read(self.old_pc + 2);
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
             },
             StoreAction::StoreAddressZeroPage => {
-                let lo = self.bus.bus_read(self.old_pc + 1);
+                let lo = bus.bus_read(self.old_pc + 1);
                 Some(format!("($FF{:02X})", lo))
             },
 
@@ -178,8 +179,8 @@ impl<'a> Display for CpuContext<'a> {
             self.old_pc,
             instruction_str,
             self.current_opcode,
-            self.bus.bus_read(self.old_pc + 1),
-            self.bus.bus_read(self.old_pc + 2),
+            bus.bus_read(self.old_pc + 1),
+            bus.bus_read(self.old_pc + 2),
             self.cpu_registers
         )
     }

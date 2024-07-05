@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::sync::Mutex;
+
 use crate::bus::Bus;
 use crate::cpu::execution_plan::ArithmeticLogicUnitAction;
 
@@ -17,7 +20,7 @@ use super::util::check_half_carry_relative;
 use super::ValueEnum;
 
 pub struct CpuContext<'a> {
-    pub bus: Bus<'a>,
+    pub bus: Arc<Mutex<dyn Bus>>,
     pub cpu_registers: CpuRegisters,
     pub current_instruction: Instruction<'a>,
     pub old_pc: u16,
@@ -34,8 +37,7 @@ pub struct CpuContext<'a> {
 }
 
 impl<'a> CpuContext<'a> {
-    pub fn new(rom_file: &'a str) -> Self {
-        let bus = Bus::new(rom_file);
+    pub fn new(bus: Arc<Mutex<dyn Bus>>) -> Self {
         Self {
             bus,
             cpu_registers: CpuRegisters::new(),
@@ -54,15 +56,15 @@ impl<'a> CpuContext<'a> {
     }
 
     fn get_interrupt_enable_register(&self) -> u8 {
-        self.bus.bus_read(0xFFFF)
+        self.bus.lock().unwrap().bus_read(0xFFFF)
     }
 
     fn get_interrupt_flags_register(&self) -> u8 {
-        self.bus.bus_read(0xFF0F)
+        self.bus.lock().unwrap().bus_read(0xFF0F)
     }
 
     fn set_interrupt_flags_register(&mut self, value: u8) {
-        self.bus.bus_write8(0xFF0F, value);
+        self.bus.lock().unwrap().bus_write(0xFF0F, value);
     }
 
     fn request_interrupt(&mut self, interrupt_type: InterruptType) {
@@ -74,12 +76,12 @@ impl<'a> CpuContext<'a> {
         // Do not count the CPU ticks during interrupts!
         // self.stack_push16(self.cpu_registers.pc);
         println!("Running interrupt handler for address: {:04X}", address);
+        let mut bus = self.bus.lock().unwrap();
+
         self.cpu_registers.sp -= 1;
-        self.bus
-            .bus_write8(self.cpu_registers.sp, (self.cpu_registers.pc >> 8) as u8);
+        bus.bus_write(self.cpu_registers.sp, (self.cpu_registers.pc >> 8) as u8);
         self.cpu_registers.sp -= 1;
-        self.bus
-            .bus_write8(self.cpu_registers.sp, self.cpu_registers.pc as u8);
+        bus.bus_write(self.cpu_registers.sp, self.cpu_registers.pc as u8);
         self.cpu_registers.pc = address;
     }
 
@@ -126,25 +128,25 @@ impl<'a> CpuContext<'a> {
         if address == 0xFF44 {
             self.return_and_inc_ly()
         } else {
-            self.bus.bus_read(address)
+            self.bus.lock().unwrap().bus_read(address)
         }
     }
 
     pub fn bus_read16(&mut self, address: u16) -> u16 {
-        self.emu_cycles(2);
-        self.bus.bus_read16(address)
+        let lo = self.bus_read(address) as u16;
+        let hi = self.bus_read(address + 1) as u16;
+        lo | (hi << 8)
     }
 
     pub fn bus_write(&mut self, address: u16, value: u8) {
-        self.bus.bus_write8(address, value);
+        self.bus.lock().unwrap().bus_write(address, value);
         self.emu_cycles(1);
         self.last_written_address = Some(address);
     }
 
     pub fn bus_write_16(&mut self, address: u16, value: u16) {
-        self.bus.bus_write16(address, value);
-        self.emu_cycles(2);
-        self.last_written_address = Some(address);
+        self.bus_write(address, value as u8);
+        self.bus_write(address + 1, (value >> 8) as u8);
     }
 
     pub fn stack_push(&mut self, data: u8) {
@@ -170,11 +172,8 @@ impl<'a> CpuContext<'a> {
     }
 
     pub fn fetch_instruction(&mut self) {
-        let pc: u16 = self.cpu_registers.pc;
-        self.current_opcode = self.bus_read(pc);
-        self.current_opcode = self.get_next_pc_value();
-
-        self.current_instruction = Instruction::from(self.current_opcode);
+        self.current_instruction = Instruction::from(self.bus_read(self.cpu_registers.pc));
+        self.cpu_registers.pc += 1;
     }
 
     fn push_pc(&mut self) {
@@ -184,8 +183,6 @@ impl<'a> CpuContext<'a> {
     fn execute_special_instructions(&mut self) {
         if self.current_instruction.instruction_type == InstructionType::DI {
             self.interrupt_master_enabled = false;
-        } else if self.current_instruction.instruction_type == InstructionType::CALL {
-            self.push_pc();
         } else if self.current_instruction.instruction_type == InstructionType::STOP {
             panic!("STOP instruction called!");
         }
@@ -227,7 +224,10 @@ impl<'a> CpuContext<'a> {
                 FetchAction::FetchSignedData => {
                     ValueEnum::SignedData8(self.get_next_pc_value() as i8)
                 }
-                FetchAction::FetchData16Bits => ValueEnum::Data16(self.get_next_pc_value16()),
+                FetchAction::FetchData16Bits => {
+                    self.emu_cycles(1); // 16 bit register
+                    ValueEnum::Data16(self.get_next_pc_value16())
+                }
                 FetchAction::FetchAddressZeroPage => {
                     let mut address = self.get_next_pc_value() as u16;
                     address |= 0xFF00;
@@ -296,6 +296,10 @@ impl<'a> CpuContext<'a> {
                         _ => anyhow::bail!("Only HL register is allowed for Indirect decrement"),
                     }
                 }
+                FetchAction::FetchStack => {
+                    let value = self.stack_pop16();
+                    ValueEnum::Data16(value)
+                }
                 FetchAction::FetchAddress => todo!("FetchAction::FetchAddress"),
             },
         )
@@ -310,6 +314,9 @@ impl<'a> CpuContext<'a> {
             StoreAction::StoreRegister16Bits(register_type_16) => self
                 .cpu_registers
                 .set_register_16(register_type_16, value.try_into()?),
+            StoreAction::StoreStack => {
+                self.stack_push16(value.try_into()?);
+            }
             StoreAction::StoreIndirect(register_16) => {
                 let address = self.cpu_registers.get_register_16(register_16);
                 self.bus_write(address, value.try_into()?);
@@ -362,8 +369,11 @@ impl<'a> CpuContext<'a> {
         let fetched_data = self.fetch_data()?;
 
         println!("{}", self);
-        self.bus.dbg_update();
-        self.bus.dbg_print();
+        {
+            let mut bus = self.bus.lock().unwrap();
+            bus.dbg_update();
+            bus.dbg_print();
+        }
         let data_to_store = if execution_plan.get_arithmetic_logic_unit_actions()
             == &ArithmeticLogicUnitAction::None
         {
@@ -384,11 +394,8 @@ impl<'a> CpuContext<'a> {
         };
         if self.check_condition() {
             if self.current_instruction.instruction_type == InstructionType::RET {
-                println!(
-                    "RET instruction called!, returning to address: {:04X}",
-                    self.cpu_registers.sp
-                );
                 let address = ValueEnum::Data16(self.stack_pop16());
+                self.emu_cycles(1);
                 self.store_data(address)
             } else if self.current_instruction.instruction_type == InstructionType::CALL {
                 self.push_pc();
@@ -418,11 +425,15 @@ impl<'a> CpuContext<'a> {
             for _ in 0..4 {
                 self.ticks += 1;
 
-                if let Some(interrupt) = self.bus.io.timer.timer_tick() {
-                    self.request_interrupt(interrupt);
+                {
+                    let interrupt = self.bus.lock().unwrap().timer_tick();
+
+                    if let Some(interrupt_type) = interrupt {
+                        self.request_interrupt(interrupt_type);
+                    }
                 }
             }
-            self.dma_done = self.bus.dma_tick();
+            self.dma_done = self.bus.lock().unwrap().dma_tick();
         }
     }
 
