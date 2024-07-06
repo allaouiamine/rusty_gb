@@ -1,4 +1,4 @@
-use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
+use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExecutionPlan {
@@ -92,7 +92,7 @@ pub enum ArithmeticLogicUnitAction {
     And(RegisterType), // Logical AND the value of a register A, B, C, D, E, H or L with register A
     Xor, // Logical XOR the value of a register A, B, C, D, E, H or L with register A
     Or,  // Logical OR the value of a register A, B, C, D, E, H or L with register A
-    Cp(RegisterType),  // Compare the value of a register A, B, C, D, E, H or L with register A
+    Cp,  // Compare the value of a register A, B, C, D, E, H or L with register A
 }
 
 impl ArithmeticLogicUnitAction {
@@ -113,7 +113,7 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::And(_) => todo!(),
             ArithmeticLogicUnitAction::Xor => Box::new(XorOperation::new()),
             ArithmeticLogicUnitAction::Or => Box::new(OrOperation::new()),
-            ArithmeticLogicUnitAction::Cp(_) => todo!(),
+            ArithmeticLogicUnitAction::Cp => Box::new(CpOperation::new()),
         }
     }
 }

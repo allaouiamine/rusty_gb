@@ -14,7 +14,13 @@ pub struct SharedData {
 impl EmuContext {
     pub fn run(&mut self, cpu: &mut CpuContext) {
         loop {
-            cpu.cpu_step().unwrap();
+            match cpu.cpu_step() {
+                Ok(_) => {},
+                Err(_) => {
+                    dbg!(&cpu.current_instruction);
+                    panic!("Error in cpu_step")
+                },
+            }
         }
         /*
 

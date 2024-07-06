@@ -413,6 +413,31 @@ impl AluOperation for XorOperation {
         })
     }
 }
+pub struct CpOperation;
+
+impl CpOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for CpOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let data: u8 = fetched_data.try_into()?;
+        Ok(AluOutput {
+            value: ValueEnum::None,
+            z: Some(cpu_registers.a == data),
+            n: Some(true),
+            h: Some((cpu_registers.a & 0x0F) < (data & 0x0F)),
+            c: Some(cpu_registers.a < data),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

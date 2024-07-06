@@ -77,7 +77,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister16Bits(RegisterType::SP),
                     ArithmeticLogicUnitAction::None,
-                    StoreAction::StoreAddress,
+                    StoreAction::StoreAddress16Bits,
                 ),
                 ..Default::default()
             },
@@ -1317,7 +1317,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 description: "ADD A,B",
                 instruction_type: InstructionType::ADD,
                 execution_plan: ExecutionPlan::new(
-                    FetchAction::FetchRegister(RegisterType::B),
+                   FetchAction::FetchRegister(RegisterType::B),
                     ArithmeticLogicUnitAction::Add(RegisterType::A),
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
@@ -1934,7 +1934,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::B),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -1945,7 +1945,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::C),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -1956,7 +1956,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::D),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -1967,7 +1967,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::E),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -1978,7 +1978,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::H),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -1989,7 +1989,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::L),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -2000,7 +2000,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchIndirect(RegisterType::HL),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -2011,7 +2011,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::A),
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()
@@ -2382,7 +2382,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::CP,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchData,
-                    ArithmeticLogicUnitAction::Cp(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cp,
                     StoreAction::None,
                 ),
                 ..Default::default()

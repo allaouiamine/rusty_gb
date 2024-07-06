@@ -172,7 +172,8 @@ impl<'a> CpuContext<'a> {
     }
 
     pub fn fetch_instruction(&mut self) {
-        self.current_instruction = Instruction::from(self.bus_read(self.cpu_registers.pc));
+        self.current_opcode = self.bus_read(self.cpu_registers.pc);
+        self.current_instruction = Instruction::from(self.current_opcode);
         self.cpu_registers.pc += 1;
     }
 
@@ -227,6 +228,10 @@ impl<'a> CpuContext<'a> {
                 FetchAction::FetchData16Bits => {
                     self.emu_cycles(1); // 16 bit register
                     ValueEnum::Data16(self.get_next_pc_value16())
+                },
+                FetchAction::FetchAddress => {
+                    let address = self.get_next_pc_value16();
+                    ValueEnum::Data8(self.bus_read(address))
                 }
                 FetchAction::FetchAddressZeroPage => {
                     let mut address = self.get_next_pc_value() as u16;
@@ -300,7 +305,6 @@ impl<'a> CpuContext<'a> {
                     let value = self.stack_pop16();
                     ValueEnum::Data16(value)
                 }
-                FetchAction::FetchAddress => todo!("FetchAction::FetchAddress"),
             },
         )
     }
