@@ -1,4 +1,4 @@
-use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
+use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExecutionPlan {
@@ -89,7 +89,7 @@ pub enum ArithmeticLogicUnitAction {
 
     // Bitwise operations
     Rra, // Rotate the value of register A to the right through the carry flag
-    And(RegisterType), // Logical AND the value of a register A, B, C, D, E, H or L with register A
+    And, // Logical AND the value of a register A, B, C, D, E, H or L with register A
     Xor, // Logical XOR the value of a register A, B, C, D, E, H or L with register A
     Or,  // Logical OR the value of a register A, B, C, D, E, H or L with register A
     Cp,  // Compare the value of a register A, B, C, D, E, H or L with register A
@@ -110,7 +110,7 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Sub(register_type) => Box::new(SubOperation::new(register_type)),
             ArithmeticLogicUnitAction::SubWithCarry(_) => todo!(),
             ArithmeticLogicUnitAction::Rra => Box::new(RraOperation::new()),
-            ArithmeticLogicUnitAction::And(_) => todo!(),
+            ArithmeticLogicUnitAction::And => Box::new(AndOperation::new()),
             ArithmeticLogicUnitAction::Xor => Box::new(XorOperation::new()),
             ArithmeticLogicUnitAction::Or => Box::new(OrOperation::new()),
             ArithmeticLogicUnitAction::Cp => Box::new(CpOperation::new()),

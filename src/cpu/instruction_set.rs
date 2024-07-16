@@ -1670,7 +1670,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::B),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1681,7 +1681,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::C),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1692,7 +1692,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::D),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1703,7 +1703,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::E),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1714,7 +1714,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::H),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1725,7 +1725,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::L),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1736,7 +1736,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchIndirect(RegisterType::HL),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -1747,7 +1747,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchRegister(RegisterType::A),
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()
@@ -2229,7 +2229,7 @@ impl<'i> From<u8> for Instruction<'i> {
                 instruction_type: InstructionType::AND,
                 execution_plan: ExecutionPlan::new(
                     FetchAction::FetchData,
-                    ArithmeticLogicUnitAction::And(RegisterType::A),
+                    ArithmeticLogicUnitAction::And,
                     StoreAction::StoreRegister(RegisterType::A),
                 ),
                 ..Default::default()

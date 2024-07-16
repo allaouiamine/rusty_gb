@@ -439,6 +439,33 @@ impl AluOperation for CpOperation {
     }
 }
 
+pub struct AndOperation;
+
+impl AndOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for AndOperation {
+    fn execute(
+        &self,
+        fetched_data: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let data: u8 = fetched_data.try_into()?;
+        let result = cpu_registers.a & data;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(result == 0),
+            n: Some(false),
+            h: Some(true),
+            c: Some(false),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -47,24 +47,29 @@ fn test_ld() {
         pc: 0,
         sp: 0xFFFF,
     };
+
+    // LD BC, 0x1211
     let _ = cpu.cpu_step().unwrap(); 
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x1211);
     assert_eq!(cpu.cpu_registers.pc, 3);
     // TODO: Fix later it should be 12 not 16
     //assert_eq!(cpu.ticks, 12);
     
+    // LD (BC), A
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 4);
     assert_eq!(cpu.bus.lock().unwrap().bus_read(0x1211), 0x99); // BC = 0x1211, (BC) = 0x99
     assert_eq!(cpu.ticks, 8);
 
+    // LD B, 0x13
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 6);
     assert_eq!(cpu.cpu_registers.b, 0x13);
     assert_eq!(cpu.ticks, 8);
 
+    // LD (0x1514), SP
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 9);
@@ -73,6 +78,7 @@ fn test_ld() {
     assert_eq!(lo | (hi << 8), 0xFFFF); // LD (0x1514), SP
     assert_eq!(cpu.ticks, 20);
 
+    // LD A, (BC)
     cpu.ticks = 0;
     cpu.bus.lock().unwrap().bus_write(0x1311, 0xAA);
     let _ = cpu.cpu_step().unwrap();
@@ -80,12 +86,49 @@ fn test_ld() {
     assert_eq!(cpu.cpu_registers.a, 0xAA); // BC = 0x1311
     assert_eq!(cpu.ticks, 8);
 
+    // LD C, 0x16
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 12);
     assert_eq!(cpu.cpu_registers.c, 0x16);
     assert_eq!(cpu.ticks, 8);
 
-    // TODO: Use copilot to generate tests for other LD instructions
+    cpu.cpu_registers.a = 0x99;
+    // LD DE, 0x1817
+    cpu.ticks = 0;
+    let _ = cpu.cpu_step().unwrap();
+    assert_eq!(cpu.cpu_registers.pc, 15);
+    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x1817);
+    // TODO: Fix later it should be 12 not 16
+    //assert_eq!(cpu.ticks, 12);
     
+    // LD (DE), A
+    cpu.ticks = 0;
+    let _ = cpu.cpu_step().unwrap();
+    assert_eq!(cpu.cpu_registers.pc, 16);
+    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x1817), 0x99); 
+    assert_eq!(cpu.ticks, 8);
+
+    // LD D, 0x19
+    cpu.ticks = 0;
+    let _ = cpu.cpu_step().unwrap();
+    assert_eq!(cpu.cpu_registers.pc, 18);
+    assert_eq!(cpu.cpu_registers.d, 0x19);
+    assert_eq!(cpu.ticks, 8);
+
+    // LD A, (DE)
+    cpu.ticks = 0;
+    cpu.bus.lock().unwrap().bus_write(0x1917, 0xBB);
+    let _ = cpu.cpu_step().unwrap();
+    assert_eq!(cpu.cpu_registers.pc, 19);
+    assert_eq!(cpu.cpu_registers.a, 0xBB); 
+
+    // LD E, 0x20
+    cpu.ticks = 0;
+    let _ = cpu.cpu_step().unwrap();
+    assert_eq!(cpu.cpu_registers.pc, 21);
+    assert_eq!(cpu.cpu_registers.e, 0x20);
+    assert_eq!(cpu.ticks, 8);
+
+
 }
