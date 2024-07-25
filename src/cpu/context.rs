@@ -3,6 +3,8 @@ use std::sync::Mutex;
 
 use crate::bus::Bus;
 use crate::cpu::execution_plan::ArithmeticLogicUnitAction;
+use crate::cpu::registers::REGISTERS_LOOKUP;
+use crate::cpu::AluOutput;
 
 use super::execution_plan::FetchAction;
 use super::execution_plan::StoreAction;
@@ -182,6 +184,7 @@ impl<'a> CpuContext<'a> {
     }
 
     fn execute_special_instructions(&mut self) {
+        // TODO: use custom action for these
         if self.current_instruction.instruction_type == InstructionType::DI {
             self.interrupt_master_enabled = false;
         } else if self.current_instruction.instruction_type == InstructionType::STOP {
@@ -228,7 +231,7 @@ impl<'a> CpuContext<'a> {
                 FetchAction::FetchData16Bits => {
                     self.emu_cycles(1); // 16 bit register
                     ValueEnum::Data16(self.get_next_pc_value16())
-                },
+                }
                 FetchAction::FetchAddress => {
                     let address = self.get_next_pc_value16();
                     ValueEnum::Data8(self.bus_read(address))
@@ -310,7 +313,7 @@ impl<'a> CpuContext<'a> {
     }
 
     fn store_data(&mut self, value: ValueEnum) -> anyhow::Result<()> {
-        match self.current_instruction.execution_plan.get_store_actions() {
+        match self.current_instruction.execution_plan.get_store_action() {
             StoreAction::None => {}
             StoreAction::StoreRegister(register_type) => self
                 .cpu_registers
@@ -368,6 +371,143 @@ impl<'a> CpuContext<'a> {
         Ok(())
     }
 
+    fn process_cb(&mut self, prefix_cb: u8) -> anyhow::Result<AluOutput> {
+        /*
+         * The lower 3 bits 0, 1 and 2 of the opcode after prefix 0xCB are used to determine
+         * the cpu register
+         */
+        let register_type = REGISTERS_LOOKUP[prefix_cb as usize & 0b111];
+
+        let fetched_data: u8 = match register_type {
+            RegisterType::A => self.cpu_registers.a,
+            RegisterType::B => self.cpu_registers.b,
+            RegisterType::C => self.cpu_registers.c,
+            RegisterType::D => self.cpu_registers.d,
+            RegisterType::E => self.cpu_registers.e,
+            RegisterType::H => self.cpu_registers.h,
+            RegisterType::L => self.cpu_registers.l,
+            RegisterType::HL => {
+                self.emu_cycles(1); // 16 bit register
+                self.bus_read(self.cpu_registers.get_register_16(&RegisterType::HL))
+            }
+            other => panic!("{} register cannot be used in CB prefix", other),
+        };
+
+        /* The high bits 6 and 7 determine the class of operation
+        * 00: Rotate/Shift/SWAP: The next 3 bits: 3, 4 and 5 determine the operation
+              in the order from 000 to 111: RLC, RRC, RL, RR, SLA, SRA, SWAP, SRL
+        * 01: Test Bit: The next 3 bits determine the bit to test from bit0 to bit7
+        * 10: Reset Bit: The next 3 bits determine the bit to reset from bit0 to bit7
+        * 11: Set Bit: The next 3 bits determine the bit to set from bit0 to bit7
+        */
+        let operation_class = prefix_cb >> 6;
+        let carry_flag = self.cpu_registers.f.get_flag_as_u8(Flags::C);
+        Ok(match operation_class {
+            0b00 => {
+                // RLC, RRC, RL, RR, SLA, SRA, SWAP, SRL
+                let operation = prefix_cb >> 3 & 0b111;
+                let (value, carry) = match operation {
+                    0b000 => {
+                        // RLC rotate left: shift left then move uppermost bit to the rightmost bit
+                        let rotated = (fetched_data << 1) | (fetched_data >> 7);
+                        let carry = rotated & 0x01 == 0x1;
+                        (rotated, carry)
+                    }
+                    0b001 => {
+                        // RRC rotate right: shift right then move rightmost bit to the leftmost bit
+                        let rotated = (fetched_data >> 1) | (fetched_data << 7);
+                        let carry = rotated & 0x80 == 0x80;
+                        (rotated, carry)
+                    }
+                    0b010 => {
+                        // RL rotate left through carry: shift left then move carry to the rightmost bit
+                        let carry = fetched_data & 0x80 == 0x80;
+                        let rotated = (fetched_data << 1) | carry_flag;
+                        (rotated, carry)
+                    }
+                    0b011 => {
+                        // RR rotate right through carry: shift right then move carry to the leftmost bit
+                        let carry = fetched_data & 0x01 == 0x01;
+                        let rotated = (fetched_data >> 1) | (carry_flag << 7);
+                        (rotated, carry)
+                    }
+                    0b100 => {
+                        // SLA shift left: shift left then move 0 to the rightmost bit
+                        let carry = fetched_data & 0x80 == 0x80;
+                        let shifted = fetched_data << 1;
+                        (shifted, carry)
+                    }
+                    0b101 => {
+                        // SRA shift right: shift right then move the leftmost bit to the rightmost bit
+                        let carry = fetched_data & 0x01 == 0x01;
+                        let shifted = (fetched_data >> 1) | (fetched_data & 0x80); // keep the sign bit: BIT7
+                        (shifted, carry)
+                    }
+                    0b110 => {
+                        // SWAP swap nibbles: swap the upper and lower nibbles
+                        let carry = false;
+                        let swapped = (fetched_data >> 4) | (fetched_data << 4);
+                        (swapped, carry)
+                    }
+                    0b111 => {
+                        // SRL shift right: shift right then move 0 to the leftmost bit
+                        let carry = fetched_data & 0x01 == 0x01;
+                        let shifted = fetched_data >> 1;
+                        (shifted, carry)
+                    }
+                    _ => panic!("operation can only be 000 to 111"),
+                };
+                AluOutput {
+                    value: ValueEnum::Data8(value),
+                    z: Some(value == 0),
+                    n: Some(false),
+                    h: Some(false),
+                    c: Some(carry),
+                    additional_cpu_cycles: 0,
+                }
+            }
+            0b01 => {
+                // Test Bit: The next 3 bits determine the bit to test from bit0 to bit7
+                let bit_test_mask = 1 << ((prefix_cb >> 3) & 0b111);
+                AluOutput {
+                    value: ValueEnum::None,
+                    z: Some((fetched_data & bit_test_mask) == bit_test_mask),
+                    n: Some(false),
+                    h: Some(true),
+                    c: None,
+                    additional_cpu_cycles: 0,
+                }
+            }
+            0b10 => {
+                // Reset Bit: The next 3 bits determine the bit to reset from bit0 to bit7
+                let bit_reset_mask = !(1 << ((prefix_cb >> 3) & 0b111));
+                let reset = fetched_data & bit_reset_mask;
+                AluOutput {
+                    value: ValueEnum::Data8(reset),
+                    z: None,
+                    n: None,
+                    h: None,
+                    c: None,
+                    additional_cpu_cycles: 0,
+                }
+            }
+            0b11 => {
+                // Set Bit: The next 3 bits determine the bit to set from bit0 to bit7
+                let bit_set_mask = 1 << ((prefix_cb >> 3) & 0b111);
+                let set = fetched_data | bit_set_mask;
+                AluOutput {
+                    value: ValueEnum::Data8(set),
+                    z: None,
+                    n: None,
+                    h: None,
+                    c: None,
+                    additional_cpu_cycles: 0,
+                }
+            }
+            _ => panic!("operation_class can only be 00, 01, 10 or 11"),
+        })
+    }
+
     pub fn execute_current_instruction(&mut self) -> anyhow::Result<()> {
         let execution_plan = self.current_instruction.execution_plan;
         let fetched_data = self.fetch_data()?;
@@ -378,13 +518,25 @@ impl<'a> CpuContext<'a> {
             bus.dbg_update();
             bus.dbg_print();
         }
-        let data_to_store = if execution_plan.get_arithmetic_logic_unit_actions()
+        // TODO: implement prefix CB here
+        if self.current_instruction.instruction_type == InstructionType::CB {
+            let output_data = self.process_cb(fetched_data.try_into()?)?;
+            self.cpu_registers.set_flags(
+                output_data.z,
+                output_data.n,
+                output_data.h,
+                output_data.c,
+            );
+            self.store_data(output_data.value)?;
+            return Ok(());
+        }
+        let data_to_store = if execution_plan.get_arithmetic_logic_unit_action()
             == &ArithmeticLogicUnitAction::None
         {
             fetched_data
         } else {
             let output_data = execution_plan
-                .get_arithmetic_logic_unit_actions()
+                .get_arithmetic_logic_unit_action()
                 .get_operation()
                 .execute(fetched_data, &self.cpu_registers)?;
             self.cpu_registers.set_flags(
@@ -462,16 +614,3 @@ impl<'a> CpuContext<'a> {
         condition
     }
 }
-
-/*
-const REGISTERS_LOOKUP: [RegisterType; 8] = [
-    RegisterType::B,
-    RegisterType::C,
-    RegisterType::D,
-    RegisterType::E,
-    RegisterType::H,
-    RegisterType::L,
-    RegisterType::HL,
-    RegisterType::A,
-];
-*/

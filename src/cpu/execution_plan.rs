@@ -1,34 +1,57 @@
-use super::{alu_operations::{AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation}, RegisterType};
+use super::{
+    alu_operations::{
+        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation,
+        AndOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16,
+        OrOperation, RraOperation, SubOperation, XorOperation,
+    },
+    RegisterType,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExecutionPlan {
     fetch_action: FetchAction,
-    arithmetic_logic_unit_actions: ArithmeticLogicUnitAction,
-    store_actions: StoreAction,
+    arithmetic_logic_unit_action: ArithmeticLogicUnitAction,
+    custom_action: CustomAction,
+    store_action: StoreAction,
 }
 
 impl ExecutionPlan {
     pub fn new(
         fetch_action: FetchAction,
-        arithmetic_logic_unit_actions: ArithmeticLogicUnitAction,
-        store_actions: StoreAction,
+        arithmetic_logic_unit_action: ArithmeticLogicUnitAction,
+        store_action: StoreAction,
     ) -> Self {
         Self {
             fetch_action,
-            arithmetic_logic_unit_actions,
-            store_actions,
+            arithmetic_logic_unit_action,
+            custom_action: CustomAction::None,
+            store_action,
+        }
+    }
+
+    pub fn with_custom_action(
+        fetch_action: FetchAction,
+        arithmetic_logic_unit_action: ArithmeticLogicUnitAction,
+        custom_action: CustomAction,
+        store_action: StoreAction,
+    ) -> Self {
+        Self {
+            fetch_action,
+            arithmetic_logic_unit_action,
+            custom_action,
+            store_action,
         }
     }
     pub fn get_fetch_action(&self) -> &FetchAction {
         &self.fetch_action
     }
 
-    pub fn get_arithmetic_logic_unit_actions(&self) -> &ArithmeticLogicUnitAction {
-        &self.arithmetic_logic_unit_actions
+    pub fn get_arithmetic_logic_unit_action(&self) -> &ArithmeticLogicUnitAction {
+        &self.arithmetic_logic_unit_action
     }
 
-    pub fn get_store_actions(&self) -> &StoreAction {
-        &self.store_actions
+    pub fn get_store_action(&self) -> &StoreAction {
+        &self.store_action
     }
 }
 
@@ -36,8 +59,9 @@ impl Default for ExecutionPlan {
     fn default() -> Self {
         Self {
             fetch_action: FetchAction::None,
-            arithmetic_logic_unit_actions: ArithmeticLogicUnitAction::None,
-            store_actions: StoreAction::None,
+            arithmetic_logic_unit_action: ArithmeticLogicUnitAction::None,
+            custom_action: CustomAction::None,
+            store_action: StoreAction::None,
         }
     }
 }
@@ -66,20 +90,20 @@ pub enum FetchAction {
     // a 16-bit register and increment the register
     // This is only used in the HL register
     FetchIndirectAndDecrement(RegisterType), // Fetch the value from the memory address pointed by
-                                               // a 16-bit register and decrement the register
-                                               // This is only used in the HL register
+    // a 16-bit register and decrement the register
+    // This is only used in the HL register
     FetchStack, // Fetch the value from the stack --> POP
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ArithmeticLogicUnitAction {
     None,
-    Inc, // Increment the value of a register A, B, C, D, E, H or L
-    Inc16, // Increment the value of a 16-bit register BC, DE, HL or SP
-    Dec, // Decrement the value of a register A, B, C, D, E, H or L
-    Dec16, // Decrement the value of a 16-bit register BC, DE, HL or SP
-    Add(RegisterType),     // Add the value of a register A, B, C, D, E, H or L
-    Add16(RegisterType), // Add the value of a 16-bit register BC, DE, HL or SP
+    Inc,                       // Increment the value of a register A, B, C, D, E, H or L
+    Inc16,                     // Increment the value of a 16-bit register BC, DE, HL or SP
+    Dec,                       // Decrement the value of a register A, B, C, D, E, H or L
+    Dec16,                     // Decrement the value of a 16-bit register BC, DE, HL or SP
+    Add(RegisterType),         // Add the value of a register A, B, C, D, E, H or L
+    Add16(RegisterType),       // Add the value of a 16-bit register BC, DE, HL or SP
     AddRelative(RegisterType), // Add the value of a 16-bit register with an 8-bit offset
     // (signed)
     AddWithCarry(RegisterType), // Add the value of a register A, B, C, D, E, H or L
@@ -103,11 +127,21 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Inc16 => Box::new(IncOperation16::new()),
             ArithmeticLogicUnitAction::Dec => Box::new(DecOperation::new()),
             ArithmeticLogicUnitAction::Dec16 => Box::new(DecOperation16::new()),
-            ArithmeticLogicUnitAction::Add(register_type) => Box::new(AddOperation::new(register_type)),
-            ArithmeticLogicUnitAction::Add16(register_type) => Box::new(AddOperation16::new(register_type)),
-            ArithmeticLogicUnitAction::AddRelative(register_type) => Box::new(AddRelativeOperation::new(register_type)),
-            ArithmeticLogicUnitAction::AddWithCarry(register_type) => Box::new(AddWithCarryOperation::new(register_type)),
-            ArithmeticLogicUnitAction::Sub(register_type) => Box::new(SubOperation::new(register_type)),
+            ArithmeticLogicUnitAction::Add(register_type) => {
+                Box::new(AddOperation::new(register_type))
+            }
+            ArithmeticLogicUnitAction::Add16(register_type) => {
+                Box::new(AddOperation16::new(register_type))
+            }
+            ArithmeticLogicUnitAction::AddRelative(register_type) => {
+                Box::new(AddRelativeOperation::new(register_type))
+            }
+            ArithmeticLogicUnitAction::AddWithCarry(register_type) => {
+                Box::new(AddWithCarryOperation::new(register_type))
+            }
+            ArithmeticLogicUnitAction::Sub(register_type) => {
+                Box::new(SubOperation::new(register_type))
+            }
             ArithmeticLogicUnitAction::SubWithCarry(_) => todo!(),
             ArithmeticLogicUnitAction::Rra => Box::new(RraOperation::new()),
             ArithmeticLogicUnitAction::And => Box::new(AndOperation::new()),
@@ -118,13 +152,19 @@ impl ArithmeticLogicUnitAction {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CustomAction{
+    None,
+    PrefixCB,
+}
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum StoreAction {
     None,
     StoreRegister(RegisterType), // Store the result to an 8-bit register: A, B, C, D, E, H or L
     StoreRegister16Bits(RegisterType), // Store the result to a 16-bit register: AF, BC, DE, HL, SP, PC
-    StoreStack, // Store the result to the stack --> PUSH
+    StoreStack,                        // Store the result to the stack --> PUSH
     StoreIndirect(RegisterType),       // Store the result to the memory address pointed by a
     // 16-bit register
     StoreIndirectZeroPage(RegisterType), // Store the result to the memory address pointed by

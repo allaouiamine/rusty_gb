@@ -129,7 +129,7 @@ impl<'a> Display for CpuContext<'a> {
             },
         };
 
-        let operand_2 = match self.current_instruction.execution_plan.get_store_actions() { 
+        let operand_2 = match self.current_instruction.execution_plan.get_store_action() { 
             StoreAction::None|StoreAction::StoreStack => None,
             StoreAction::StoreRegister(register_type)|
             StoreAction::StoreRegister16Bits(register_type) => {

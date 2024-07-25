@@ -2038,7 +2038,17 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0xC2 => unimplemented!("JP NZ,a16"),
+            0xC2 => Self {
+                description: "JP NZ,a16",
+                instruction_type: InstructionType::JP,
+                condition: ConditionType::NZ,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xC3 => Self {
                 // JP a16 is equivalent to LD PC, d16
                 // The next two bytes after the instruction bytecode 0xC3 constitute the jump address
@@ -2052,7 +2062,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0xC4 => unimplemented!("CALL NZ,a16"),
+            0xC4 => Self {
+                description: "CALL NZ,a16",
+                instruction_type: InstructionType::CALL,
+                condition: ConditionType::NZ,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0xC5 => Self {
                 description: "PUSH BC",
                 instruction_type: InstructionType::PUSH,
@@ -2076,7 +2097,18 @@ impl<'i> From<u8> for Instruction<'i> {
             },
 
             0xC7 => unimplemented!("RST 00H"),
-            0xC8 => unimplemented!("RET Z"),
+            0xC8 => Self {
+                description: "RET Z",
+                instruction_type: InstructionType::RET,
+                condition: ConditionType::Z,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0xC9 => Self {
                 // RET is equivalent to POP PC, which is equivalent to LD PC, (SP)
                 description: "RET",
@@ -2089,9 +2121,38 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             
             },
-            0xCA => unimplemented!("JP Z,a16"),
-            0xCB => unimplemented!("PREFIX CB"),
-            0xCC => unimplemented!("CALL Z,a16"),
+            0xCA => Self {
+                description: "JP Z,a16",
+                instruction_type: InstructionType::JP,
+                condition: ConditionType::Z,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
+            0xCB => Self {
+                description: "PREFIX CB",
+                instruction_type: InstructionType::CB,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
+            0xCC => Self {
+                description: "CALL Z,a16",
+                instruction_type: InstructionType::CALL,
+                condition: ConditionType::Z,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xCD => Self {
                 // CALL a16 is equivalent to PUSH PC; JP a16(which is equivalent to LD PC D16
                 // The next two bytes after the instruction bytecode 0xCD constitute the call address
@@ -2117,7 +2178,18 @@ impl<'i> From<u8> for Instruction<'i> {
             },
 
             0xCF => unimplemented!("RST 08H"),
-            0xD0 => unimplemented!("RET NC"),
+            0xD0 => Self {
+                description: "RET NC",
+                instruction_type: InstructionType::RET,
+                condition: ConditionType::NC,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0xD1 => Self {
                 description: "POP DE",
                 instruction_type: InstructionType::POP,
@@ -2129,9 +2201,30 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             
             },
-            0xD2 => unimplemented!("JP NC,a16"),
+            0xD2 => Self {
+                description: "JP NC,a16",
+                instruction_type: InstructionType::JP,
+                condition: ConditionType::NC,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            
+            },
             0xD3 => unimplemented!("INVALID"),
-            0xD4 => unimplemented!("CALL NC,a16"),
+            0xD4 => Self {
+                description: "CALL NC,a16",
+                instruction_type: InstructionType::CALL,
+                condition: ConditionType::NC,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xD5 => Self {
                 description: "PUSH DE",
                 instruction_type: InstructionType::PUSH,
@@ -2155,11 +2248,41 @@ impl<'i> From<u8> for Instruction<'i> {
             },
 
             0xD7 => unimplemented!("RST 10H"),
-            0xD8 => unimplemented!("RET C"),
+            0xD8 => Self {
+                description: "RET C",
+                instruction_type: InstructionType::RET,
+                condition: ConditionType::C,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::None,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xD9 => unimplemented!("RETI"),
-            0xDA => unimplemented!("JP C,a16"),
+            0xDA => Self {
+                description: "JP C,a16",
+                instruction_type: InstructionType::JP,
+                condition: ConditionType::C,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xDB => unimplemented!("INVALID"),
-            0xDC => unimplemented!("CALL C,a16"),
+            0xDC => Self {
+                description: "CALL C,a16",
+                instruction_type: InstructionType::CALL,
+                condition: ConditionType::C,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchData16Bits,
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xDD => unimplemented!("INVALID"),
 
             0xDE => Self {
@@ -2247,7 +2370,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xE9 => unimplemented!(""),
+            0xE9 => Self {
+                description: "JP (HL)",
+                instruction_type: InstructionType::JP,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister16Bits(RegisterType::HL),
+                    ArithmeticLogicUnitAction::None,
+                    StoreAction::StoreRegister16Bits(RegisterType::PC),
+                ),
+                ..Default::default()
+            },
             0xEA => Self {
                 description: "LD (a16),A",
                 instruction_type: InstructionType::LD,

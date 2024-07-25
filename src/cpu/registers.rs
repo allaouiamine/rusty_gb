@@ -197,3 +197,14 @@ impl CpuRegisters {
         }
     }
 }
+
+pub const REGISTERS_LOOKUP: [RegisterType; 8] = [
+    RegisterType::B,
+    RegisterType::C,
+    RegisterType::D,
+    RegisterType::E,
+    RegisterType::H,
+    RegisterType::L,
+    RegisterType::HL,
+    RegisterType::A,
+];
