@@ -1,8 +1,6 @@
 use super::{
     alu_operations::{
-        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation,
-        AndOperation, CpOperation, DecOperation, DecOperation16, IncOperation, IncOperation16,
-        OrOperation, RraOperation, SubOperation, XorOperation,
+        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CpOperation, DaaOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation
     },
     RegisterType,
 };
@@ -117,6 +115,9 @@ pub enum ArithmeticLogicUnitAction {
     Xor, // Logical XOR the value of a register A, B, C, D, E, H or L with register A
     Or,  // Logical OR the value of a register A, B, C, D, E, H or L with register A
     Cp,  // Compare the value of a register A, B, C, D, E, H or L with register A
+    
+    // Other
+    Daa, // Decimal adjust register A
 }
 
 impl ArithmeticLogicUnitAction {
@@ -148,6 +149,7 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Xor => Box::new(XorOperation::new()),
             ArithmeticLogicUnitAction::Or => Box::new(OrOperation::new()),
             ArithmeticLogicUnitAction::Cp => Box::new(CpOperation::new()),
+            ArithmeticLogicUnitAction::Daa => Box::new(DaaOperation::new()),
         }
     }
 }

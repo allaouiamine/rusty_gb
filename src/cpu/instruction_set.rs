@@ -383,7 +383,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0x27 => unimplemented!("DAA"),
+            0x27 => Self {
+                description: "DAA",
+                instruction_type: InstructionType::DAA,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Daa,
+                    StoreAction::StoreRegister(RegisterType::A),
+                ),
+                ..Default::default()
+            },
             0x28 => Self {
                 description: "JR Z,r8",
                 instruction_type: InstructionType::JR,

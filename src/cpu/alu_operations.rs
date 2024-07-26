@@ -466,6 +466,72 @@ impl AluOperation for AndOperation {
     }
 }
 
+pub struct DaaOperation;
+
+impl DaaOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for DaaOperation {
+    fn execute(
+        &self,
+        _: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        /*
+         * DAA - Decimal Adjust A
+         * This instruction adjusts the register A so that the correct representation of Binary
+         * Coded Decimal (BCD) is obtained.
+         * Which means that each nibble is treated as a decimal digit. for example
+         *  45 is 0100 0101 in BCD
+         */
+        let a = cpu_registers.a;
+
+        // If the last operation was addition, the N flag is 0
+        // If the last operation was subtraction, the N flag is 1
+        let n_flag = cpu_registers.f.get_flag(Flags::N);
+        let c_flag = cpu_registers.f.get_flag(Flags::C);
+        let h_flag = cpu_registers.f.get_flag(Flags::H);
+
+        let mut new_c_flag = false;
+
+        let mut adjust = 0;
+        // if the half carry flag is set, it means that the lower nibble of the result is greater
+        // than 9, which cannot be represented in a single digit in BCD
+        // If we add 6 to any hex digit higher than 9 (0xA to 0xF) to the lower nibble, it will overflow to the upper
+        // nibble and the lower nibble stays in the range of 0-9.
+        // !n_flag means the last operation was an addition
+        if h_flag || (!n_flag && ((a & 0x0F) > 9)) {
+            adjust = 0x06;
+        }
+
+        // Same as above, we will add 6 to the upper nibble if the carry flag is set or the upper
+        // nibble is greater than 9 if the last operation was an addition
+        if c_flag || (!n_flag && (a > 0x99)) {
+            adjust |= 0x60;
+            new_c_flag = true;
+        }
+
+        let result = if n_flag {
+            // substraction
+            a.wrapping_sub(adjust)
+        } else {
+            // addition
+            a.wrapping_add(adjust)
+        };
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(result == 0),
+            n: None,
+            h: Some(false),
+            c: Some(new_c_flag),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
