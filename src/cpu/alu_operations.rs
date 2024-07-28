@@ -532,6 +532,84 @@ impl AluOperation for DaaOperation {
     }
 }
 
+
+pub struct CplOperation;
+
+impl CplOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for CplOperation {
+    fn execute(
+        &self,
+        _: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let result = cpu_registers.a ^ 0xFF; // Invert all the bits
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: None,
+            n: Some(true),
+            h: Some(true),
+            c: None,
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct ScfOperation;
+
+impl ScfOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for ScfOperation {
+    fn execute(
+        &self,
+        _: ValueEnum,
+        _: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        Ok(AluOutput {
+            value: ValueEnum::None,
+            z: None,
+            n: Some(false),
+            h: Some(false),
+            c: Some(true),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct CcfOperation;
+
+impl CcfOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for CcfOperation {
+    fn execute(
+        &self,
+        _: ValueEnum,
+        cpu_registers: &CpuRegisters,
+    ) -> anyhow::Result<AluOutput> {
+        let c = !cpu_registers.f.get_flag(Flags::C);
+        Ok(AluOutput {
+            value: ValueEnum::None,
+            z: None,
+            n: Some(false),
+            h: Some(false),
+            c: Some(c),
+            additional_cpu_cycles: 0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

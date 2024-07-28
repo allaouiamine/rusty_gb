@@ -468,7 +468,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0x2F => unimplemented!("CPL"),
+            0x2F => Self {
+                description: "CPL",
+                instruction_type: InstructionType::CPL,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Cpl,
+                    StoreAction::StoreRegister(RegisterType::A),
+                ),
+                ..Default::default()
+            },
             0x30 => Self {
                 description: "JR NC,r8",
                 instruction_type: InstructionType::JR,
@@ -544,7 +553,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0x37 => unimplemented!("SCF"),
+            0x37 => Self {
+                description: "SCF",
+                instruction_type: InstructionType::SCF,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Scf,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
 
             0x38 => Self {
                 description: "JR C,r8",
@@ -625,7 +643,16 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0x3F => unimplemented!("CCF"),
+            0x3F => Self {
+                description: "CCF",
+                instruction_type: InstructionType::CCF,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Ccf,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
 
             0x40 => Self {
                 description: "LD B,B",

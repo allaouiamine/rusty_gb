@@ -1,6 +1,6 @@
 use super::{
     alu_operations::{
-        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CpOperation, DaaOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SubOperation, XorOperation
+        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CcfOperation, CpOperation, CplOperation, DaaOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, ScfOperation, SubOperation, XorOperation
     },
     RegisterType,
 };
@@ -118,6 +118,9 @@ pub enum ArithmeticLogicUnitAction {
     
     // Other
     Daa, // Decimal adjust register A
+    Cpl, // Invert register A
+    Scf, // Set carry flag N = 0, H = 0, C = 1
+    Ccf, // Complement carry flag N = 0, H = 0, C = !C
 }
 
 impl ArithmeticLogicUnitAction {
@@ -150,6 +153,10 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Or => Box::new(OrOperation::new()),
             ArithmeticLogicUnitAction::Cp => Box::new(CpOperation::new()),
             ArithmeticLogicUnitAction::Daa => Box::new(DaaOperation::new()),
+            ArithmeticLogicUnitAction::Cpl => Box::new(CplOperation::new()),
+            ArithmeticLogicUnitAction::Scf => Box::new(ScfOperation::new()),
+            ArithmeticLogicUnitAction::Ccf => Box::new(CcfOperation::new()),
+
         }
     }
 }
