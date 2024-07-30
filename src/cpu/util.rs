@@ -54,7 +54,6 @@ pub fn sub_with_carry(left: u8, right: u8, carry: u8) -> (u8, bool, bool, bool, 
     (diff, z, true, h, c)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

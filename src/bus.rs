@@ -16,7 +16,9 @@ FFFF	FFFF	Interrupt Enable register (IE)
 
 use std::{thread, time::Duration};
 
-use crate::{cartridge::Cartridge, cpu::types::InterruptType, dma::DMA, io::IO, ppu::PPU, ram::RamContext};
+use crate::{
+    cartridge::Cartridge, cpu::types::InterruptType, dma::DMA, io::IO, ppu::PPU, ram::RamContext,
+};
 
 // use crate::ram::RamContext;
 
@@ -143,11 +145,11 @@ impl Bus for GbBus {
         }
         match String::from_utf8(message) {
             Ok(m) => println!("DBG: {}", m),
-            Err(_) => {},
+            Err(_) => println!("DBG: Error parsing message"),
         }
     }
 
-    fn timer_tick(&mut self) -> Option<InterruptType>{
+    fn timer_tick(&mut self) -> Option<InterruptType> {
         self.io.timer.timer_tick()
     }
 

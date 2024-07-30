@@ -15,11 +15,11 @@ impl EmuContext {
     pub fn run(&mut self, cpu: &mut CpuContext) {
         loop {
             match cpu.cpu_step() {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     dbg!(&cpu.current_instruction);
                     panic!("Error in cpu_step")
-                },
+                }
             }
         }
         /*

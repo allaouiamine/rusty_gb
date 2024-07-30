@@ -2,9 +2,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::bus::Bus;
+use crate::cpu::custom_operations::CpuExtension;
 use crate::cpu::execution_plan::ArithmeticLogicUnitAction;
-use crate::cpu::registers::REGISTERS_LOOKUP;
-use crate::cpu::AluOutput;
 
 use super::execution_plan::FetchAction;
 use super::execution_plan::StoreAction;
@@ -12,7 +11,6 @@ use super::instruction::ConditionType;
 use super::instruction::InstructionType;
 use super::registers::CpuRegisters;
 use super::registers::Flags;
-use super::types::InterruptType;
 use super::RegisterType;
 
 use super::instruction::Instruction;
@@ -34,8 +32,6 @@ pub struct CpuContext<'a> {
 
     pub last_written_address: Option<u16>,
     pub dma_done: bool,
-
-    ly: u8,
 }
 
 impl<'a> CpuContext<'a> {
@@ -53,85 +49,20 @@ impl<'a> CpuContext<'a> {
             last_written_address: None,
 
             dma_done: false,
-            ly: 0,
         }
     }
 
-    fn get_interrupt_enable_register(&self) -> u8 {
-        self.bus.lock().unwrap().bus_read(0xFFFF)
+    pub fn enable_master_interrupt(&mut self) {
+        self.interrupt_master_enabled = true;
     }
 
-    fn get_interrupt_flags_register(&self) -> u8 {
-        self.bus.lock().unwrap().bus_read(0xFF0F)
-    }
-
-    fn set_interrupt_flags_register(&mut self, value: u8) {
-        self.bus.lock().unwrap().bus_write(0xFF0F, value);
-    }
-
-    fn request_interrupt(&mut self, interrupt_type: InterruptType) {
-        let interrupt_flags = self.get_interrupt_flags_register();
-        self.set_interrupt_flags_register(interrupt_flags | (interrupt_type as u8));
-    }
-
-    fn interrupt_handle(&mut self, address: u16) {
-        // Do not count the CPU ticks during interrupts!
-        // self.stack_push16(self.cpu_registers.pc);
-        println!("Running interrupt handler for address: {:04X}", address);
-        let mut bus = self.bus.lock().unwrap();
-
-        self.cpu_registers.sp -= 1;
-        bus.bus_write(self.cpu_registers.sp, (self.cpu_registers.pc >> 8) as u8);
-        self.cpu_registers.sp -= 1;
-        bus.bus_write(self.cpu_registers.sp, self.cpu_registers.pc as u8);
-        self.cpu_registers.pc = address;
-    }
-
-    fn cpu_handle_interrupts(&mut self) {
-        let interrupt_flags = self.get_interrupt_flags_register();
-
-        let interrupt_enable = self.get_interrupt_enable_register();
-
-        let allowed_interrupts = interrupt_flags & interrupt_enable;
-
-        if allowed_interrupts == 0 {
-            return;
-        }
-
-        let interrupt_type = InterruptType::from(allowed_interrupts);
-
-        panic!("Interrupt requested: {:?}", interrupt_type);
-
-        // if multiple interrupts requested, chose the highest priority, run it and leave the others
-        let address: u16 = match interrupt_type {
-            InterruptType::VBLANK => 0x40,
-            InterruptType::LCDStat => 0x48,
-            InterruptType::TIMER => 0x50,
-            InterruptType::SERIAL => 0x58,
-            InterruptType::JOYPAD => 0x60,
-        };
-
-        self.interrupt_handle(address);
-
-        // reset in interrupt_flags bit
-        self.set_interrupt_flags_register(interrupt_flags & !(interrupt_type as u8));
-        self.halted = false;
+    pub fn disable_master_interrupt(&mut self) {
         self.interrupt_master_enabled = false;
-    }
-
-    fn return_and_inc_ly(&mut self) -> u8 {
-        let ly = self.ly;
-        self.ly += 1;
-        ly
     }
 
     pub fn bus_read(&mut self, address: u16) -> u8 {
         self.emu_cycles(1);
-        if address == 0xFF44 {
-            self.return_and_inc_ly()
-        } else {
-            self.bus.lock().unwrap().bus_read(address)
-        }
+        self.bus.lock().unwrap().bus_read(address)
     }
 
     pub fn bus_read16(&mut self, address: u16) -> u16 {
@@ -183,15 +114,6 @@ impl<'a> CpuContext<'a> {
         self.stack_push16(self.cpu_registers.pc);
     }
 
-    fn execute_special_instructions(&mut self) {
-        // TODO: use custom action for these
-        if self.current_instruction.instruction_type == InstructionType::DI {
-            self.interrupt_master_enabled = false;
-        } else if self.current_instruction.instruction_type == InstructionType::STOP {
-            panic!("STOP instruction called!");
-        }
-    }
-
     pub fn cpu_step(&mut self) -> anyhow::Result<bool> {
         self.dma_done = false;
         self.last_written_address = None;
@@ -199,22 +121,9 @@ impl<'a> CpuContext<'a> {
         self.old_pc = self.cpu_registers.pc;
         if !self.halted {
             self.fetch_instruction();
-            self.execute_special_instructions();
             self.execute_current_instruction()?;
         } else {
             self.emu_cycles(1);
-            if self.get_interrupt_flags_register() != 0 {
-                self.halted = false;
-            }
-        }
-
-        if self.interrupt_master_enabled {
-            self.cpu_handle_interrupts();
-            self.enabling_ime = false;
-        }
-
-        if self.enabling_ime {
-            self.interrupt_master_enabled = true;
         }
 
         Ok(true)
@@ -371,143 +280,6 @@ impl<'a> CpuContext<'a> {
         Ok(())
     }
 
-    fn process_cb(&mut self, prefix_cb: u8) -> anyhow::Result<AluOutput> {
-        /*
-         * The lower 3 bits 0, 1 and 2 of the opcode after prefix 0xCB are used to determine
-         * the cpu register
-         */
-        let register_type = REGISTERS_LOOKUP[prefix_cb as usize & 0b111];
-
-        let fetched_data: u8 = match register_type {
-            RegisterType::A => self.cpu_registers.a,
-            RegisterType::B => self.cpu_registers.b,
-            RegisterType::C => self.cpu_registers.c,
-            RegisterType::D => self.cpu_registers.d,
-            RegisterType::E => self.cpu_registers.e,
-            RegisterType::H => self.cpu_registers.h,
-            RegisterType::L => self.cpu_registers.l,
-            RegisterType::HL => {
-                self.emu_cycles(1); // 16 bit register
-                self.bus_read(self.cpu_registers.get_register_16(&RegisterType::HL))
-            }
-            other => panic!("{} register cannot be used in CB prefix", other),
-        };
-
-        /* The high bits 6 and 7 determine the class of operation
-        * 00: Rotate/Shift/SWAP: The next 3 bits: 3, 4 and 5 determine the operation
-              in the order from 000 to 111: RLC, RRC, RL, RR, SLA, SRA, SWAP, SRL
-        * 01: Test Bit: The next 3 bits determine the bit to test from bit0 to bit7
-        * 10: Reset Bit: The next 3 bits determine the bit to reset from bit0 to bit7
-        * 11: Set Bit: The next 3 bits determine the bit to set from bit0 to bit7
-        */
-        let operation_class = prefix_cb >> 6;
-        let carry_flag = self.cpu_registers.f.get_flag_as_u8(Flags::C);
-        Ok(match operation_class {
-            0b00 => {
-                // RLC, RRC, RL, RR, SLA, SRA, SWAP, SRL
-                let operation = prefix_cb >> 3 & 0b111;
-                let (value, carry) = match operation {
-                    0b000 => {
-                        // RLC rotate left: shift left then move uppermost bit to the rightmost bit
-                        let rotated = (fetched_data << 1) | (fetched_data >> 7);
-                        let carry = rotated & 0x01 == 0x1;
-                        (rotated, carry)
-                    }
-                    0b001 => {
-                        // RRC rotate right: shift right then move rightmost bit to the leftmost bit
-                        let rotated = (fetched_data >> 1) | (fetched_data << 7);
-                        let carry = rotated & 0x80 == 0x80;
-                        (rotated, carry)
-                    }
-                    0b010 => {
-                        // RL rotate left through carry: shift left then move carry to the rightmost bit
-                        let carry = fetched_data & 0x80 == 0x80;
-                        let rotated = (fetched_data << 1) | carry_flag;
-                        (rotated, carry)
-                    }
-                    0b011 => {
-                        // RR rotate right through carry: shift right then move carry to the leftmost bit
-                        let carry = fetched_data & 0x01 == 0x01;
-                        let rotated = (fetched_data >> 1) | (carry_flag << 7);
-                        (rotated, carry)
-                    }
-                    0b100 => {
-                        // SLA shift left: shift left then move 0 to the rightmost bit
-                        let carry = fetched_data & 0x80 == 0x80;
-                        let shifted = fetched_data << 1;
-                        (shifted, carry)
-                    }
-                    0b101 => {
-                        // SRA shift right: shift right then move the leftmost bit to the rightmost bit
-                        let carry = fetched_data & 0x01 == 0x01;
-                        let shifted = (fetched_data >> 1) | (fetched_data & 0x80); // keep the sign bit: BIT7
-                        (shifted, carry)
-                    }
-                    0b110 => {
-                        // SWAP swap nibbles: swap the upper and lower nibbles
-                        let carry = false;
-                        let swapped = (fetched_data >> 4) | (fetched_data << 4);
-                        (swapped, carry)
-                    }
-                    0b111 => {
-                        // SRL shift right: shift right then move 0 to the leftmost bit
-                        let carry = fetched_data & 0x01 == 0x01;
-                        let shifted = fetched_data >> 1;
-                        (shifted, carry)
-                    }
-                    _ => panic!("operation can only be 000 to 111"),
-                };
-                AluOutput {
-                    value: ValueEnum::Data8(value),
-                    z: Some(value == 0),
-                    n: Some(false),
-                    h: Some(false),
-                    c: Some(carry),
-                    additional_cpu_cycles: 0,
-                }
-            }
-            0b01 => {
-                // Test Bit: The next 3 bits determine the bit to test from bit0 to bit7
-                let bit_test_mask = 1 << ((prefix_cb >> 3) & 0b111);
-                AluOutput {
-                    value: ValueEnum::None,
-                    z: Some((fetched_data & bit_test_mask) == bit_test_mask),
-                    n: Some(false),
-                    h: Some(true),
-                    c: None,
-                    additional_cpu_cycles: 0,
-                }
-            }
-            0b10 => {
-                // Reset Bit: The next 3 bits determine the bit to reset from bit0 to bit7
-                let bit_reset_mask = !(1 << ((prefix_cb >> 3) & 0b111));
-                let reset = fetched_data & bit_reset_mask;
-                AluOutput {
-                    value: ValueEnum::Data8(reset),
-                    z: None,
-                    n: None,
-                    h: None,
-                    c: None,
-                    additional_cpu_cycles: 0,
-                }
-            }
-            0b11 => {
-                // Set Bit: The next 3 bits determine the bit to set from bit0 to bit7
-                let bit_set_mask = 1 << ((prefix_cb >> 3) & 0b111);
-                let set = fetched_data | bit_set_mask;
-                AluOutput {
-                    value: ValueEnum::Data8(set),
-                    z: None,
-                    n: None,
-                    h: None,
-                    c: None,
-                    additional_cpu_cycles: 0,
-                }
-            }
-            _ => panic!("operation_class can only be 00, 01, 10 or 11"),
-        })
-    }
-
     pub fn execute_current_instruction(&mut self) -> anyhow::Result<()> {
         let execution_plan = self.current_instruction.execution_plan;
         let fetched_data = self.fetch_data()?;
@@ -518,18 +290,7 @@ impl<'a> CpuContext<'a> {
             bus.dbg_update();
             bus.dbg_print();
         }
-        // TODO: implement prefix CB here
-        if self.current_instruction.instruction_type == InstructionType::CB {
-            let output_data = self.process_cb(fetched_data.try_into()?)?;
-            self.cpu_registers.set_flags(
-                output_data.z,
-                output_data.n,
-                output_data.h,
-                output_data.c,
-            );
-            self.store_data(output_data.value)?;
-            return Ok(());
-        }
+        self.execute_custom(fetched_data)?;
         let data_to_store = if execution_plan.get_arithmetic_logic_unit_action()
             == &ArithmeticLogicUnitAction::None
         {
@@ -576,20 +337,19 @@ impl<'a> CpuContext<'a> {
         (hi << 8) | lo
     }
 
-    fn emu_cycles(&mut self, ticks: usize) {
+    pub fn emu_cycles(&mut self, ticks: usize) {
         for _ in 0..ticks {
             for _ in 0..4 {
                 self.ticks += 1;
+                //{
+                //    let interrupt = self.bus.lock().unwrap().timer_tick();
 
-                {
-                    let interrupt = self.bus.lock().unwrap().timer_tick();
-
-                    if let Some(interrupt_type) = interrupt {
-                        self.request_interrupt(interrupt_type);
-                    }
-                }
+                //    if let Some(interrupt_type) = interrupt {
+                //        self.request_interrupt(interrupt_type);
+                //    }
+                //}
             }
-            self.dma_done = self.bus.lock().unwrap().dma_tick();
+            //self.dma_done = self.bus.lock().unwrap().dma_tick();
         }
     }
 

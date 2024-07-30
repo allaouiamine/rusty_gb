@@ -1,4 +1,8 @@
-use std::{env, process::exit, sync::{Arc, Mutex}};
+use std::{
+    env,
+    process::exit,
+    sync::{Arc, Mutex},
+};
 
 use rusty_gb::{bus::GbBus, cpu::CpuContext, emu::EmuContext};
 

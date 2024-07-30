@@ -6,8 +6,8 @@ use rusty_gb::cpu::CpuContext;
 #[test]
 fn test_jp_nz_ok() {
     let bus = TestBus::create(vec![
-        0xC2, 0x22, 0x33, // JP NZ 0x3322 
-        0xFD
+        0xC2, 0x22, 0x33, // JP NZ 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -21,8 +21,8 @@ fn test_jp_nz_ok() {
 #[test]
 fn test_jp_nz_nok() {
     let bus = TestBus::create(vec![
-        0xC2, 0x22, 0x33, // JP NZ 0x3322 
-        0xFD
+        0xC2, 0x22, 0x33, // JP NZ 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -36,8 +36,8 @@ fn test_jp_nz_nok() {
 #[test]
 fn test_jp_z_ok() {
     let bus = TestBus::create(vec![
-        0xCA, 0x22, 0x33, // JP Z 0x3322 
-        0xFD
+        0xCA, 0x22, 0x33, // JP Z 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -51,8 +51,8 @@ fn test_jp_z_ok() {
 #[test]
 fn test_jp_z_nok() {
     let bus = TestBus::create(vec![
-        0xCA, 0x22, 0x33, // JP NZ 0x3322 
-        0xFD
+        0xCA, 0x22, 0x33, // JP NZ 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -66,8 +66,8 @@ fn test_jp_z_nok() {
 #[test]
 fn test_jp_nc_ok() {
     let bus = TestBus::create(vec![
-        0xD2, 0x22, 0x33, // JP NZ 0x3322 
-        0xFD
+        0xD2, 0x22, 0x33, // JP NZ 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -81,8 +81,8 @@ fn test_jp_nc_ok() {
 #[test]
 fn test_jp_nc_nok() {
     let bus = TestBus::create(vec![
-        0xD2, 0x22, 0x33, // JP NC 0x3322 
-        0xFD
+        0xD2, 0x22, 0x33, // JP NC 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -96,8 +96,8 @@ fn test_jp_nc_nok() {
 #[test]
 fn test_jp_c_ok() {
     let bus = TestBus::create(vec![
-        0xDA, 0x22, 0x33, // JP C 0x3322 
-        0xFD
+        0xDA, 0x22, 0x33, // JP C 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -111,8 +111,8 @@ fn test_jp_c_ok() {
 #[test]
 fn test_jp_c_nok() {
     let bus = TestBus::create(vec![
-        0xDA, 0x22, 0x33, // JP NZ 0x3322 
-        0xFD
+        0xDA, 0x22, 0x33, // JP NZ 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -126,8 +126,8 @@ fn test_jp_c_nok() {
 #[test]
 fn test_jp() {
     let bus = TestBus::create(vec![
-        0xC3, 0x22, 0x33, // JP 0x3322 
-        0xFD
+        0xC3, 0x22, 0x33, // JP 0x3322
+        0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;
@@ -141,7 +141,7 @@ fn test_jp() {
 fn test_jp_hl() {
     let bus = TestBus::create(vec![
         0xE9, // JP (HL)
-        0xFD, 0xFD
+        0xFD, 0xFD,
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0000;

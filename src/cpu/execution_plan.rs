@@ -1,6 +1,9 @@
 use super::{
     alu_operations::{
-        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation, AndOperation, CcfOperation, CpOperation, CplOperation, DaaOperation, DecOperation, DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, ScfOperation, SubOperation, XorOperation
+        AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation,
+        AndOperation, CcfOperation, CpOperation, CplOperation, DaaOperation, DecOperation,
+        DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, ScfOperation,
+        SubOperation, XorOperation,
     },
     RegisterType,
 };
@@ -29,13 +32,12 @@ impl ExecutionPlan {
 
     pub fn with_custom_action(
         fetch_action: FetchAction,
-        arithmetic_logic_unit_action: ArithmeticLogicUnitAction,
         custom_action: CustomAction,
         store_action: StoreAction,
     ) -> Self {
         Self {
             fetch_action,
-            arithmetic_logic_unit_action,
+            arithmetic_logic_unit_action: ArithmeticLogicUnitAction::None,
             custom_action,
             store_action,
         }
@@ -46,6 +48,10 @@ impl ExecutionPlan {
 
     pub fn get_arithmetic_logic_unit_action(&self) -> &ArithmeticLogicUnitAction {
         &self.arithmetic_logic_unit_action
+    }
+
+    pub fn get_custom_action(&self) -> &CustomAction {
+        &self.custom_action
     }
 
     pub fn get_store_action(&self) -> &StoreAction {
@@ -115,7 +121,7 @@ pub enum ArithmeticLogicUnitAction {
     Xor, // Logical XOR the value of a register A, B, C, D, E, H or L with register A
     Or,  // Logical OR the value of a register A, B, C, D, E, H or L with register A
     Cp,  // Compare the value of a register A, B, C, D, E, H or L with register A
-    
+
     // Other
     Daa, // Decimal adjust register A
     Cpl, // Invert register A
@@ -156,17 +162,17 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Cpl => Box::new(CplOperation::new()),
             ArithmeticLogicUnitAction::Scf => Box::new(ScfOperation::new()),
             ArithmeticLogicUnitAction::Ccf => Box::new(CcfOperation::new()),
-
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum CustomAction{
+pub enum CustomAction {
     None,
     PrefixCB,
+    DI,
+    STOP,
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum StoreAction {

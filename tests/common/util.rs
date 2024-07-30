@@ -1,5 +1,8 @@
 use core::fmt;
-use std::{fmt::{Debug, Display}, sync::{Arc, Mutex}};
+use std::{
+    fmt::{Debug, Display},
+    sync::{Arc, Mutex},
+};
 
 use rusty_gb::bus::Bus;
 

@@ -12,7 +12,6 @@ pub struct Instruction<'a> {
     pub parameter: Option<u8>,
 }
 
-
 impl<'i> Default for Instruction<'i> {
     fn default() -> Self {
         Self {
@@ -154,4 +153,3 @@ impl Display for InstructionType {
         write!(f, "{}", instruction_str)
     }
 }
-

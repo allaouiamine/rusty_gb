@@ -84,7 +84,7 @@ pub struct CpuRegisters {
 
 impl CpuRegisters {
     pub fn new() -> Self {
-        let mut regs = Self {
+        let regs = Self {
             a: 0x01,
             f: FlagsRegister::new(),
             b: 0,
@@ -96,10 +96,10 @@ impl CpuRegisters {
             pc: 0x100,
             sp: 0xFFFE,
         };
-        regs.f.set_flag(Flags::Z, false);
-        regs.f.set_flag(Flags::N, false);
-        regs.f.set_flag(Flags::H, false);
-        regs.f.set_flag(Flags::C, false);
+        //regs.f.set_flag(Flags::Z, false);
+        //regs.f.set_flag(Flags::N, false);
+        //regs.f.set_flag(Flags::H, false);
+        //regs.f.set_flag(Flags::C, false);
         regs
     }
 

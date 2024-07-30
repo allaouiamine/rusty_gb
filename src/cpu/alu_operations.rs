@@ -1,11 +1,12 @@
 use anyhow;
 
-
 use super::{
-    registers::{CpuRegisters, Flags}, util::{
+    registers::{CpuRegisters, Flags},
+    util::{
         add_relative, add_with_carry, check_carry_relative, check_half_carry_relative,
         sub_with_carry,
-    }, AluOutput, RegisterType, ValueEnum
+    },
+    AluOutput, RegisterType, ValueEnum,
 };
 
 pub trait AluOperation {
@@ -16,13 +17,15 @@ pub trait AluOperation {
     ) -> anyhow::Result<AluOutput>;
 }
 
-pub struct AddOperation{
+pub struct AddOperation {
     pub register_type: Option<RegisterType>,
 }
 
 impl AddOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 
@@ -34,7 +37,9 @@ impl AluOperation for AddOperation {
     ) -> anyhow::Result<AluOutput> {
         let (sum, z, n, h, c) = add_with_carry(
             cpu_registers.get_register(
-                &self.register_type.ok_or(anyhow::anyhow!("No register provided for AddOpration"))?,
+                &self
+                    .register_type
+                    .ok_or(anyhow::anyhow!("No register provided for AddOpration"))?,
             ),
             fetched_data.try_into()?,
             0,
@@ -50,13 +55,15 @@ impl AluOperation for AddOperation {
     }
 }
 
-pub struct AddWithCarryOperation{
+pub struct AddWithCarryOperation {
     pub register_type: Option<RegisterType>,
 }
 
 impl AddWithCarryOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 impl AluOperation for AddWithCarryOperation {
@@ -87,13 +94,15 @@ impl AluOperation for AddWithCarryOperation {
     }
 }
 
-pub struct AddRelativeOperation{
+pub struct AddRelativeOperation {
     pub register_type: Option<RegisterType>,
 }
 
 impl AddRelativeOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 impl AluOperation for AddRelativeOperation {
@@ -129,12 +138,14 @@ impl AluOperation for AddRelativeOperation {
     }
 }
 
-pub struct AddOperation16{
+pub struct AddOperation16 {
     pub register_type: Option<RegisterType>,
 }
 impl AddOperation16 {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 impl AluOperation for AddOperation16 {
@@ -144,7 +155,9 @@ impl AluOperation for AddOperation16 {
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         let register_value = cpu_registers.get_register_16(
-            &self.register_type.ok_or(anyhow::anyhow!("No register provided for AddOperation16"))?,
+            &self
+                .register_type
+                .ok_or(anyhow::anyhow!("No register provided for AddOperation16"))?,
         );
         let fetched_data: u16 = fetched_data.try_into()?;
         let sum = register_value.wrapping_add(fetched_data);
@@ -164,12 +177,14 @@ impl AluOperation for AddOperation16 {
     }
 }
 
-pub struct SbcOperation{
+pub struct SbcOperation {
     pub register_type: Option<RegisterType>,
 }
 impl SbcOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 impl AluOperation for SbcOperation {
@@ -178,7 +193,9 @@ impl AluOperation for SbcOperation {
         fetched_data: ValueEnum,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
-        if self.register_type.ok_or(anyhow::anyhow!("No register provided for SbcOperation"))?
+        if self
+            .register_type
+            .ok_or(anyhow::anyhow!("No register provided for SbcOperation"))?
             != RegisterType::A
         {
             anyhow::bail!("Only A register is allowed for SBC");
@@ -199,13 +216,15 @@ impl AluOperation for SbcOperation {
     }
 }
 
-pub struct SubOperation{
+pub struct SubOperation {
     pub register_type: Option<RegisterType>,
 }
 
 impl SubOperation {
     pub fn new(register_type: &RegisterType) -> Self {
-        Self { register_type: Some(*register_type) }
+        Self {
+            register_type: Some(*register_type),
+        }
     }
 }
 impl AluOperation for SubOperation {
@@ -214,7 +233,11 @@ impl AluOperation for SubOperation {
         fetched_data: ValueEnum,
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
-        if self.register_type.ok_or(anyhow::anyhow!("No register provided for SubOperation"))? != RegisterType::A {
+        if self
+            .register_type
+            .ok_or(anyhow::anyhow!("No register provided for SubOperation"))?
+            != RegisterType::A
+        {
             anyhow::bail!("Only A register is allowed for SBC");
         }
         let (result, z, n, h, c) = sub_with_carry(cpu_registers.a, fetched_data.try_into()?, 0);
@@ -238,11 +261,7 @@ impl IncOperation {
 }
 
 impl AluOperation for IncOperation {
-    fn execute(
-        &self,
-        fetched_data: ValueEnum,
-        _: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, fetched_data: ValueEnum, _: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let (result, z, _, h, _) = add_with_carry(fetched_data.try_into()?, 1, 0);
         Ok(AluOutput {
             value: ValueEnum::Data8(result),
@@ -264,12 +283,7 @@ impl IncOperation16 {
 }
 
 impl AluOperation for IncOperation16 {
-    fn execute(
-        &self,
-        fetched_data: ValueEnum,
-        _: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
-
+    fn execute(&self, fetched_data: ValueEnum, _: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let result: u16 = fetched_data.try_into()?;
         Ok(AluOutput {
             value: ValueEnum::Data16(result.wrapping_add(1)),
@@ -282,7 +296,6 @@ impl AluOperation for IncOperation16 {
     }
 }
 
-
 pub struct DecOperation;
 
 impl DecOperation {
@@ -292,11 +305,7 @@ impl DecOperation {
 }
 
 impl AluOperation for DecOperation {
-    fn execute(
-        &self,
-        fetched_data: ValueEnum,
-        _: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, fetched_data: ValueEnum, _: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let (result, z, _, h, _) = sub_with_carry(fetched_data.try_into()?, 1, 0);
         Ok(AluOutput {
             value: ValueEnum::Data8(result),
@@ -316,11 +325,7 @@ impl DecOperation16 {
     }
 }
 impl AluOperation for DecOperation16 {
-    fn execute(
-        &self,
-        fetched_data: ValueEnum,
-        _: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, fetched_data: ValueEnum, _: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let result: u16 = fetched_data.try_into()?;
         Ok(AluOutput {
             value: ValueEnum::Data16(result.wrapping_sub(1)),
@@ -342,11 +347,7 @@ impl RraOperation {
 }
 
 impl AluOperation for RraOperation {
-    fn execute(
-        &self,
-        _: ValueEnum,
-        cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let carry = cpu_registers.f.get_flag_as_u8(Flags::C);
         let result = (cpu_registers.a >> 1) | (carry << 7);
         let c = cpu_registers.a & 0x01 == 1;
@@ -402,7 +403,7 @@ impl AluOperation for XorOperation {
         cpu_registers: &CpuRegisters,
     ) -> anyhow::Result<AluOutput> {
         let data: u8 = fetched_data.try_into()?;
-        let result = cpu_registers.a^ data;
+        let result = cpu_registers.a ^ data;
         Ok(AluOutput {
             value: ValueEnum::Data8(result),
             z: Some(result == 0),
@@ -475,11 +476,7 @@ impl DaaOperation {
 }
 
 impl AluOperation for DaaOperation {
-    fn execute(
-        &self,
-        _: ValueEnum,
-        cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
         /*
          * DAA - Decimal Adjust A
          * This instruction adjusts the register A so that the correct representation of Binary
@@ -532,7 +529,6 @@ impl AluOperation for DaaOperation {
     }
 }
 
-
 pub struct CplOperation;
 
 impl CplOperation {
@@ -542,11 +538,7 @@ impl CplOperation {
 }
 
 impl AluOperation for CplOperation {
-    fn execute(
-        &self,
-        _: ValueEnum,
-        cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let result = cpu_registers.a ^ 0xFF; // Invert all the bits
         Ok(AluOutput {
             value: ValueEnum::Data8(result),
@@ -568,11 +560,7 @@ impl ScfOperation {
 }
 
 impl AluOperation for ScfOperation {
-    fn execute(
-        &self,
-        _: ValueEnum,
-        _: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, _: ValueEnum, _: &CpuRegisters) -> anyhow::Result<AluOutput> {
         Ok(AluOutput {
             value: ValueEnum::None,
             z: None,
@@ -593,11 +581,7 @@ impl CcfOperation {
 }
 
 impl AluOperation for CcfOperation {
-    fn execute(
-        &self,
-        _: ValueEnum,
-        cpu_registers: &CpuRegisters,
-    ) -> anyhow::Result<AluOutput> {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
         let c = !cpu_registers.f.get_flag(Flags::C);
         Ok(AluOutput {
             value: ValueEnum::None,

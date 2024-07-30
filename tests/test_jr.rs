@@ -29,7 +29,6 @@ fn test_jr_nz() {
         0xFD, 0xDD, // Should jump here if NZ
         0x20, 0xFC, // Start here JR NZ 0xFR (which is -4)
         0xED, // move here if NZ condition is not satisfied
-
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0002;
@@ -41,7 +40,7 @@ fn test_jr_nz() {
     cpu.cpu_registers.pc = 0x0002;
     cpu.cpu_registers.f.register = 0x00; // Z = 0
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.cpu_registers.pc, 0);// the value should be the address of the next instruction
+    assert_eq!(cpu.cpu_registers.pc, 0); // the value should be the address of the next instruction
                                          // added to the offset
                                          // (old_pc + 2) + (-4) = (0x0002 + 2) - 4 = 0x00
 
@@ -54,7 +53,6 @@ fn test_jr_nc() {
         0xFD, 0xDD, // Should jump here if NZ
         0x30, 0xFC, // Start here JR NZ 0xFR (which is -4)
         0xED, // move here if NZ condition is not satisfied
-
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0002;
@@ -76,7 +74,6 @@ fn test_jr_z() {
         0xFD, 0xDD, // Should jump here if NZ
         0x28, 0xFC, // Start here JR NZ 0xFR (which is -4)
         0xED, // move here if NZ condition is not satisfied
-
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0002;
@@ -98,7 +95,6 @@ fn test_jr_c() {
         0xFD, 0xDD, // Should jump here if NZ
         0x38, 0xFC, // Start here JR NZ 0xFR (which is -4)
         0xED, // move here if NZ condition is not satisfied
-
     ]);
     let mut cpu = CpuContext::new(bus);
     cpu.cpu_registers.pc = 0x0002;
@@ -113,4 +109,3 @@ fn test_jr_c() {
     assert_eq!(cpu.cpu_registers.pc, 0);
     assert_eq!(cpu.ticks, 20);
 }
-

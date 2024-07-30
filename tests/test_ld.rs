@@ -1,7 +1,10 @@
 mod common;
 
 use common::util::TestBus;
-use rusty_gb::cpu::{registers::{CpuRegisters, FlagsRegister}, CpuContext, RegisterType};
+use rusty_gb::cpu::{
+    registers::{CpuRegisters, FlagsRegister},
+    CpuContext, RegisterType,
+};
 
 #[test]
 fn test_ld_0x0() {
@@ -16,13 +19,13 @@ fn test_ld_0x0() {
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x99,
-        f: FlagsRegister {register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0,
         c: 0,
         d: 0,
@@ -34,12 +37,12 @@ fn test_ld_0x0() {
     };
 
     // LD BC, 0x1211
-    let _ = cpu.cpu_step().unwrap(); 
+    let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x1211);
     assert_eq!(cpu.cpu_registers.pc, 3);
     // TODO: Fix later it should be 12 not 16
     //assert_eq!(cpu.ticks, 12);
-    
+
     // LD (BC), A
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
@@ -86,18 +89,18 @@ fn test_ld_0x1() {
         0x11, 0x17, 0x18, // LD DE, 0x1817
         0x12, // LD (DE), A
         0x16, 0x19, // LD D, 0x19
-        0x1A, // LD A, (DE) 
+        0x1A, // LD A, (DE)
         0x1E, 0x20, // LD E, 0x20
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x99,
-        f: FlagsRegister {register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0,
         c: 0,
         d: 0,
@@ -115,12 +118,12 @@ fn test_ld_0x1() {
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x1817);
     // TODO: Fix later it should be 12 not 16
     //assert_eq!(cpu.ticks, 12);
-    
+
     // LD (DE), A
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 4);
-    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x1817), 0x99); 
+    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x1817), 0x99);
     assert_eq!(cpu.ticks, 8);
 
     // LD D, 0x19
@@ -135,7 +138,7 @@ fn test_ld_0x1() {
     cpu.bus.lock().unwrap().bus_write(0x1917, 0xBB);
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 7);
-    assert_eq!(cpu.cpu_registers.a, 0xBB); 
+    assert_eq!(cpu.cpu_registers.a, 0xBB);
 
     // LD E, 0x20
     cpu.ticks = 0;
@@ -150,20 +153,20 @@ fn test_ld_0x2() {
     let mut bus_data = vec![0xFD; 0x10000];
     let rom = vec![
         0x21, 0x21, 0x22, // LD HL, 0x2211
-        0x22, // LD (HL+), A 
+        0x22, // LD (HL+), A
         0x26, 0x23, // LD H, 0x23
         0x2A, // LD A, (HL+)
         0x2E, 0x24, // LD L, 0x24
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x99,
-        f: FlagsRegister {register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0,
         c: 0,
         d: 0,
@@ -181,13 +184,13 @@ fn test_ld_0x2() {
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x2221);
     // TODO: Fix later it should be 12 not 16
     //assert_eq!(cpu.ticks, 12);
-    
+
     // LD (HL+), A
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 4);
-    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2221), 0x99); 
-    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x2222); 
+    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2221), 0x99);
+    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x2222);
     assert_eq!(cpu.ticks, 8);
 
     // LD H, 0x23
@@ -202,8 +205,8 @@ fn test_ld_0x2() {
     cpu.bus.lock().unwrap().bus_write(0x2322, 0xBB);
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 7);
-    assert_eq!(cpu.cpu_registers.a, 0xBB); 
-    assert_eq!(cpu.cpu_registers.l, 0x23); 
+    assert_eq!(cpu.cpu_registers.a, 0xBB);
+    assert_eq!(cpu.cpu_registers.l, 0x23);
 
     // LD L, 0x24
     cpu.ticks = 0;
@@ -211,7 +214,6 @@ fn test_ld_0x2() {
     assert_eq!(cpu.cpu_registers.pc, 9);
     assert_eq!(cpu.cpu_registers.l, 0x24);
     assert_eq!(cpu.ticks, 8);
-
 }
 
 #[test]
@@ -226,13 +228,13 @@ fn test_ld_0x3() {
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x99,
-        f: FlagsRegister {register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0,
         c: 0,
         d: 0,
@@ -250,20 +252,20 @@ fn test_ld_0x3() {
     assert_eq!(cpu.cpu_registers.sp, 0x2625);
     // TODO: Fix later it should be 12 not 16
     //assert_eq!(cpu.ticks, 12);
-    
+
     // LD (HL-), A
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 4);
-    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2221), 0x99); 
-    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x2220); 
+    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2221), 0x99);
+    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x2220);
     assert_eq!(cpu.ticks, 8);
 
     // LD (HL), 0x27
     cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 6);
-    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2220), 0x27); 
+    assert_eq!(cpu.bus.lock().unwrap().bus_read(0x2220), 0x27);
     assert_eq!(cpu.ticks, 12);
 
     // LD A, (HL-)
@@ -271,9 +273,9 @@ fn test_ld_0x3() {
     cpu.bus.lock().unwrap().bus_write(0x2220, 0xBB);
     let _ = cpu.cpu_step().unwrap();
     assert_eq!(cpu.cpu_registers.pc, 7);
-    assert_eq!(cpu.cpu_registers.a, 0xBB); 
-    assert_eq!(cpu.cpu_registers.l, 0x1F); 
-    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x221F); 
+    assert_eq!(cpu.cpu_registers.a, 0xBB);
+    assert_eq!(cpu.cpu_registers.l, 0x1F);
+    assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x221F);
     assert_eq!(cpu.ticks, 8);
 
     // LD A, 0x28
@@ -299,13 +301,13 @@ fn test_ld_to_b() {
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x11,
-        f: FlagsRegister{register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0x22,
         c: 0x33,
         d: 0x44,
@@ -374,7 +376,6 @@ fn test_ld_to_b() {
     assert_eq!(cpu.ticks, 4);
 }
 
-
 #[test]
 fn test_ld_to_c() {
     let mut bus_data = vec![0xfd; 0x10000];
@@ -390,13 +391,13 @@ fn test_ld_to_c() {
     ];
     let l = rom.len();
     bus_data[..l].clone_from_slice(&rom);
-    let bus = TestBus::create(bus_data); 
+    let bus = TestBus::create(bus_data);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x11,
-        f: FlagsRegister{register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0x22,
         c: 0x33,
         d: 0x44,

@@ -161,7 +161,6 @@ fn test_call_nz_nok() {
     assert_eq!(cpu.cpu_registers.sp, 0x000D);
 }
 
-
 #[test]
 fn test_ret_nc_ok() {
     let bus = TestBus::create(vec![

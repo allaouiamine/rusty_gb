@@ -1,17 +1,22 @@
 mod common;
 
 use common::util::TestBus;
-use rusty_gb::cpu::{registers::{CpuRegisters, FlagsRegister}, CpuContext, RegisterType};
+use rusty_gb::cpu::{
+    registers::{CpuRegisters, FlagsRegister},
+    CpuContext, RegisterType,
+};
 
 #[test]
 fn test_cp() {
-    let bus = TestBus::create(vec![0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xFE, 0x80, 0x20]);
+    let bus = TestBus::create(vec![
+        0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xFE, 0x80, 0x20,
+    ]);
     let mut cpu = CpuContext::new(bus);
     cpu.old_pc = 0;
 
-    cpu.cpu_registers = CpuRegisters{
+    cpu.cpu_registers = CpuRegisters {
         a: 0x3,
-        f: FlagsRegister {register: 0},
+        f: FlagsRegister { register: 0 },
         b: 0,
         c: 0x1,
         d: 0x2,

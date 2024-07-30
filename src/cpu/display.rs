@@ -12,7 +12,6 @@ use super::types::RegisterType;
 use super::types::ValueEnum;
 use super::CpuContext;
 
-
 impl Display for ValueEnum {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
         match self {
@@ -84,83 +83,79 @@ impl<'a> Display for CpuContext<'a> {
         let mut instruction_str = format!("{}", self.current_instruction);
         let bus = self.bus.lock().unwrap();
 
-
-        let operand_1 = match self.current_instruction.execution_plan.get_fetch_action()  {
-            FetchAction::None|FetchAction::FetchStack => None,
-            FetchAction::FetchData|FetchAction::FetchSignedData => {
+        let operand_1 = match self.current_instruction.execution_plan.get_fetch_action() {
+            FetchAction::None | FetchAction::FetchStack => None,
+            FetchAction::FetchData | FetchAction::FetchSignedData => {
                 Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
-            },
+            }
             FetchAction::FetchData16Bits => {
                 let lo = bus.bus_read(self.old_pc + 1);
                 let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("${:04X}", (lo as u16) | ((hi as u16) << 8)))
-            },
+            }
             FetchAction::FetchAddress => {
                 let lo = bus.bus_read(self.old_pc + 1);
                 let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
-            },
+            }
             FetchAction::FetchAddressZeroPage => {
                 let lo = bus.bus_read(self.old_pc + 1);
                 Some(format!("$FF({:02X})", lo))
-            },
-            FetchAction::FetchRegister(register_type)|FetchAction::FetchRegister16Bits(register_type) => {
-                Some(format!("{}", register_type))
-            },
+            }
+            FetchAction::FetchRegister(register_type)
+            | FetchAction::FetchRegister16Bits(register_type) => Some(format!("{}", register_type)),
             FetchAction::FetchRegister16BitsWithOffset(register_type) => {
                 if register_type == &RegisterType::PC {
                     Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
                 } else {
-                    Some(format!("{}+${:02X}", register_type, bus.bus_read(self.old_pc + 1)))
+                    Some(format!(
+                        "{}+${:02X}",
+                        register_type,
+                        bus.bus_read(self.old_pc + 1)
+                    ))
                 }
-            },
-            FetchAction::FetchIndirect(register_type) => {
-                Some(format!("({})", register_type))
-            },
+            }
+            FetchAction::FetchIndirect(register_type) => Some(format!("({})", register_type)),
             FetchAction::FetchIndirectZeroPage(register_type) => {
                 Some(format!("({})", register_type))
-            },
+            }
             FetchAction::FetchIndirectAndIncrement(register_type) => {
                 Some(format!("({}+)", register_type))
-            },
+            }
             FetchAction::FetchIndirectAndDecrement(register_type) => {
-
                 Some(format!("({}-)", register_type))
-            },
+            }
         };
 
-        let operand_2 = match self.current_instruction.execution_plan.get_store_action() { 
-            StoreAction::None|StoreAction::StoreStack => None,
-            StoreAction::StoreRegister(register_type)|
-            StoreAction::StoreRegister16Bits(register_type) => {
+        let operand_2 = match self.current_instruction.execution_plan.get_store_action() {
+            StoreAction::None | StoreAction::StoreStack => None,
+            StoreAction::StoreRegister(register_type)
+            | StoreAction::StoreRegister16Bits(register_type) => {
                 if register_type == &RegisterType::PC {
                     None
                 } else {
                     Some(format!("{}", register_type))
                 }
-            },
-            StoreAction::StoreIndirect(register_type) => {
-                Some(format!("({})", register_type))
-            },
+            }
+            StoreAction::StoreIndirect(register_type) => Some(format!("({})", register_type)),
             StoreAction::StoreIndirectZeroPage(register_type) => {
                 Some(format!("({})", register_type))
-            },
+            }
             StoreAction::StoreIndirectAndIncrement(register_type) => {
                 Some(format!("({}+)", register_type))
-            },
+            }
             StoreAction::StoreIndirectAndDecrement(register_type) => {
                 Some(format!("({}-)", register_type))
-            },
-            StoreAction::StoreAddress|StoreAction::StoreAddress16Bits => {
+            }
+            StoreAction::StoreAddress | StoreAction::StoreAddress16Bits => {
                 let lo = bus.bus_read(self.old_pc + 1);
                 let hi = bus.bus_read(self.old_pc + 2);
                 Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
-            },
+            }
             StoreAction::StoreAddressZeroPage => {
                 let lo = bus.bus_read(self.old_pc + 1);
                 Some(format!("($FF{:02X})", lo))
-            },
-
+            }
         };
         if let Some(operand_2) = operand_2 {
             instruction_str = format!("{} {}", instruction_str, operand_2);
@@ -185,4 +180,3 @@ impl<'a> Display for CpuContext<'a> {
         )
     }
 }
-

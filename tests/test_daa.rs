@@ -1,7 +1,10 @@
 mod common;
 
 use common::util::TestBus;
-use rusty_gb::cpu::{registers::{CpuRegisters, FlagsRegister}, CpuContext, RegisterType};
+use rusty_gb::cpu::{
+    registers::{CpuRegisters, FlagsRegister},
+    CpuContext, RegisterType,
+};
 
 #[test]
 fn test_daa() {
@@ -20,7 +23,7 @@ fn test_daa() {
     cpu.cpu_registers.f.register = 0x20; // H=1
     cpu.ticks = 0;
     let _ = cpu.cpu_step();
-    assert_eq!(cpu.cpu_registers.a , 0x19);
+    assert_eq!(cpu.cpu_registers.a, 0x19);
     assert_eq!(cpu.cpu_registers.f.register, 0x00);
     assert_eq!(cpu.ticks, 4);
 
@@ -28,7 +31,7 @@ fn test_daa() {
     cpu.cpu_registers.f.register = 0x00;
     cpu.ticks = 0;
     let _ = cpu.cpu_step();
-    assert_eq!(cpu.cpu_registers.a , 0x20);
+    assert_eq!(cpu.cpu_registers.a, 0x20);
     assert_eq!(cpu.cpu_registers.f.register, 0x00);
     assert_eq!(cpu.ticks, 4);
 
@@ -36,7 +39,7 @@ fn test_daa() {
     cpu.cpu_registers.f.register = 0x00;
     cpu.ticks = 0;
     let _ = cpu.cpu_step();
-    assert_eq!(cpu.cpu_registers.a , 0x13);
+    assert_eq!(cpu.cpu_registers.a, 0x13);
     assert_eq!(cpu.cpu_registers.f.register, 0x00);
     assert_eq!(cpu.ticks, 4);
 
@@ -44,7 +47,7 @@ fn test_daa() {
     cpu.cpu_registers.f.register = 0x10; // C=1
     cpu.ticks = 0;
     let _ = cpu.cpu_step();
-    assert_eq!(cpu.cpu_registers.a , 0x73);
+    assert_eq!(cpu.cpu_registers.a, 0x73);
     assert_eq!(cpu.cpu_registers.f.register, 0x10);
     assert_eq!(cpu.ticks, 4);
 
@@ -52,7 +55,7 @@ fn test_daa() {
     cpu.cpu_registers.f.register = 0x10;
     cpu.ticks = 0;
     let _ = cpu.cpu_step();
-    assert_eq!(cpu.cpu_registers.a , 0x00);
+    assert_eq!(cpu.cpu_registers.a, 0x00);
     assert_eq!(cpu.cpu_registers.f.register, 0x90);
     assert_eq!(cpu.ticks, 4);
 }
