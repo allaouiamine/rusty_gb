@@ -171,7 +171,11 @@ pub enum CustomAction {
     None,
     PrefixCB,
     DI,
+    EI,
+    Halt,
     STOP,
+    PushPC,
+    PopPC,
 }
 
 #[derive(Debug, Clone, Copy)]

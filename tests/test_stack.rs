@@ -37,7 +37,7 @@ fn test_push_pop() {
 
     // PUSH
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 12);
+    assert_eq!(cpu.ticks, 16);
     assert_eq!(cpu.cpu_registers.sp, 0x0E);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0708);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0506);
@@ -45,24 +45,27 @@ fn test_push_pop() {
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120); // the lower 4 bits
                                                                               // of F are always 0
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 24);
+    assert_eq!(cpu.ticks, 16);
     assert_eq!(cpu.cpu_registers.sp, 0x0C);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0708);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0506);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 36);
+    assert_eq!(cpu.ticks, 16);
     assert_eq!(cpu.cpu_registers.sp, 0x0A);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0708);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0506);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 48);
+    assert_eq!(cpu.ticks, 16);
     assert_eq!(cpu.cpu_registers.sp, 0x08);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0708);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0506);
@@ -70,32 +73,36 @@ fn test_push_pop() {
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
     // POP
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 60);
+    assert_eq!(cpu.ticks, 12);
     assert_eq!(cpu.cpu_registers.sp, 0x0A);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0120);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0506);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 72);
+    assert_eq!(cpu.ticks, 12);
     assert_eq!(cpu.cpu_registers.sp, 0x0C);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0120);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 84);
+    assert_eq!(cpu.ticks, 12);
     assert_eq!(cpu.cpu_registers.sp, 0x0E);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0120);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0304);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::HL), 0x0506);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::AF), 0x0120);
 
+    cpu.ticks = 0;
     let _ = cpu.cpu_step().unwrap();
-    assert_eq!(cpu.ticks, 96);
+    assert_eq!(cpu.ticks, 12);
     assert_eq!(cpu.cpu_registers.sp, 0x10);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::BC), 0x0120);
     assert_eq!(cpu.cpu_registers.get_register_16(&RegisterType::DE), 0x0304);

@@ -11,6 +11,7 @@ use super::instruction::ConditionType;
 use super::instruction::InstructionType;
 use super::registers::CpuRegisters;
 use super::registers::Flags;
+use super::types::InterruptType;
 use super::RegisterType;
 
 use super::instruction::Instruction;
@@ -27,8 +28,8 @@ pub struct CpuContext<'a> {
     pub current_opcode: u8,
     halted: bool,
     pub ticks: usize,
+    interrupt_master_enabled_next_instruction: bool,
     interrupt_master_enabled: bool,
-    enabling_ime: bool,
 
     pub last_written_address: Option<u16>,
     pub dma_done: bool,
@@ -44,15 +45,23 @@ impl<'a> CpuContext<'a> {
             current_opcode: 0,
             halted: false,
             ticks: 0,
+            interrupt_master_enabled_next_instruction: false,
             interrupt_master_enabled: false,
-            enabling_ime: false,
             last_written_address: None,
 
             dma_done: false,
         }
     }
 
-    pub fn enable_master_interrupt(&mut self) {
+    pub fn halt(&mut self) {
+        self.halted = true;
+    }
+
+    pub fn enable_master_interrupt_next_instruction(&mut self) {
+        self.interrupt_master_enabled_next_instruction = true;
+    }
+
+    fn enable_master_interrupt(&mut self) {
         self.interrupt_master_enabled = true;
     }
 
@@ -60,8 +69,23 @@ impl<'a> CpuContext<'a> {
         self.interrupt_master_enabled = false;
     }
 
+    fn get_interrupt_flags_register(&self) -> u8 {
+        self.bus.lock().unwrap().bus_read(0xFF0F)
+    }
+
+    fn set_interrupt_flags_register(&mut self, value: u8) {
+        self.bus.lock().unwrap().bus_write(0xFF0F, value);
+    }
+
+    fn get_interrupt_enable_register(&self) -> u8 {
+        self.bus.lock().unwrap().bus_read(0xFFFF)
+    }
+
+    fn set_interrupt_enable_register(&mut self, value: u8) {
+        self.bus.lock().unwrap().bus_write(0xFFFF, value);
+    }
+
     pub fn bus_read(&mut self, address: u16) -> u8 {
-        self.emu_cycles(1);
         self.bus.lock().unwrap().bus_read(address)
     }
 
@@ -73,7 +97,6 @@ impl<'a> CpuContext<'a> {
 
     pub fn bus_write(&mut self, address: u16, value: u8) {
         self.bus.lock().unwrap().bus_write(address, value);
-        self.emu_cycles(1);
         self.last_written_address = Some(address);
     }
 
@@ -110,8 +133,47 @@ impl<'a> CpuContext<'a> {
         self.cpu_registers.pc += 1;
     }
 
-    fn push_pc(&mut self) {
+    pub fn push_pc(&mut self) {
         self.stack_push16(self.cpu_registers.pc);
+    }
+
+    fn interrupt_handle(&mut self, address: u16) {
+        println!("Running interrupt handler for address: {:04X}", address);
+        self.push_pc();
+        self.cpu_registers.pc = address;
+    }
+
+    fn cpu_handle_interrupts(&mut self) {
+        // The register 0xFF0F shows which interrupts are requested
+        let interrupt_flags = self.get_interrupt_flags_register();
+
+        // The register 0xFFFF shows which interrupts are enabled
+        let interrupt_enable = self.get_interrupt_enable_register();
+
+        // The AND operation will show which interrupts are requested and enabled
+        let allowed_interrupts = interrupt_flags & interrupt_enable;
+
+        if allowed_interrupts == 0 {
+            return;
+        }
+
+        let interrupt_type = InterruptType::from(allowed_interrupts);
+
+        // if multiple interrupts requested, chose the highest priority, run it and leave the others
+        let address: u16 = match interrupt_type {
+            InterruptType::VBLANK => 0x40,
+            InterruptType::LCDStat => 0x48,
+            InterruptType::TIMER => 0x50,
+            InterruptType::SERIAL => 0x58,
+            InterruptType::JOYPAD => 0x60,
+        };
+
+        self.interrupt_handle(address);
+
+        // reset in interrupt_flags bit
+        self.set_interrupt_flags_register(interrupt_flags & !(interrupt_type as u8));
+        self.halted = false;
+        self.interrupt_master_enabled = false;
     }
 
     pub fn cpu_step(&mut self) -> anyhow::Result<bool> {
@@ -123,7 +185,20 @@ impl<'a> CpuContext<'a> {
             self.fetch_instruction();
             self.execute_current_instruction()?;
         } else {
-            self.emu_cycles(1);
+            self.emu_cycles(4);
+            if self.get_interrupt_flags_register() != 0 {
+                self.halted = false;
+            }
+        }
+
+        if self.interrupt_master_enabled {
+            self.cpu_handle_interrupts();
+            self.interrupt_master_enabled_next_instruction = false;
+        }
+
+        if self.interrupt_master_enabled_next_instruction {
+            // This is used to enable the interrupts after the next instruction
+            self.interrupt_master_enabled = true;
         }
 
         Ok(true)
@@ -137,10 +212,7 @@ impl<'a> CpuContext<'a> {
                 FetchAction::FetchSignedData => {
                     ValueEnum::SignedData8(self.get_next_pc_value() as i8)
                 }
-                FetchAction::FetchData16Bits => {
-                    self.emu_cycles(1); // 16 bit register
-                    ValueEnum::Data16(self.get_next_pc_value16())
-                }
+                FetchAction::FetchData16Bits => ValueEnum::Data16(self.get_next_pc_value16()),
                 FetchAction::FetchAddress => {
                     let address = self.get_next_pc_value16();
                     ValueEnum::Data8(self.bus_read(address))
@@ -280,24 +352,19 @@ impl<'a> CpuContext<'a> {
         Ok(())
     }
 
-    pub fn execute_current_instruction(&mut self) -> anyhow::Result<()> {
-        let execution_plan = self.current_instruction.execution_plan;
-        let fetched_data = self.fetch_data()?;
+    fn dbg_test_rom(&mut self) {
+        let mut bus = self.bus.lock().unwrap();
+        bus.dbg_update();
+        bus.dbg_print();
+    }
 
-        println!("{}", self);
-        {
-            let mut bus = self.bus.lock().unwrap();
-            bus.dbg_update();
-            bus.dbg_print();
-        }
-        self.execute_custom(fetched_data)?;
-        let data_to_store = if execution_plan.get_arithmetic_logic_unit_action()
-            == &ArithmeticLogicUnitAction::None
-        {
-            fetched_data
+    fn execute_alu(&mut self, fetched_data: ValueEnum) -> anyhow::Result<ValueEnum> {
+        let execution_plan = self.current_instruction.execution_plan;
+        let action = execution_plan.get_arithmetic_logic_unit_action();
+        if action == &ArithmeticLogicUnitAction::None {
+            Ok(fetched_data)
         } else {
-            let output_data = execution_plan
-                .get_arithmetic_logic_unit_action()
+            let output_data = action
                 .get_operation()
                 .execute(fetched_data, &self.cpu_registers)?;
             self.cpu_registers.set_flags(
@@ -306,23 +373,27 @@ impl<'a> CpuContext<'a> {
                 output_data.h,
                 output_data.c,
             );
-            self.emu_cycles(output_data.additional_cpu_cycles);
-            output_data.value
-        };
-        if self.check_condition() {
-            if self.current_instruction.instruction_type == InstructionType::RET {
-                let address = ValueEnum::Data16(self.stack_pop16());
-                self.emu_cycles(1);
-                self.store_data(address)
-            } else if self.current_instruction.instruction_type == InstructionType::CALL {
-                self.push_pc();
-                self.store_data(data_to_store)
-            } else {
-                self.store_data(data_to_store)
-            }
-        } else {
-            Ok(())
+            Ok(output_data.value)
         }
+    }
+
+    pub fn execute_current_instruction(&mut self) -> anyhow::Result<()> {
+        let fetched_data = self.fetch_data()?;
+
+        println!("{}", self);
+        self.dbg_test_rom();
+
+        if self.check_condition() {
+            self.execute_custom(fetched_data)?;
+            let data_to_store = self.execute_alu(fetched_data)?;
+            self.store_data(data_to_store)?;
+            self.emu_cycles(self.current_instruction.cpu_cycles);
+            assert_ne!(self.current_instruction.cpu_cycles, 0);
+        } else {
+            self.emu_cycles(self.current_instruction.cpu_cycles_condition_fails);
+            assert_ne!(self.current_instruction.cpu_cycles_condition_fails, 0);
+        }
+        Ok(())
     }
 
     pub fn get_next_pc_value(&mut self) -> u8 {
@@ -337,19 +408,20 @@ impl<'a> CpuContext<'a> {
         (hi << 8) | lo
     }
 
+    fn request_interrupt(&mut self, interrupt_type: InterruptType) {
+        let interrupt_flags = self.get_interrupt_flags_register();
+        self.set_interrupt_flags_register(interrupt_flags | (interrupt_type as u8));
+    }
+
     pub fn emu_cycles(&mut self, ticks: usize) {
         for _ in 0..ticks {
-            for _ in 0..4 {
-                self.ticks += 1;
-                //{
-                //    let interrupt = self.bus.lock().unwrap().timer_tick();
+            self.ticks += 1;
 
-                //    if let Some(interrupt_type) = interrupt {
-                //        self.request_interrupt(interrupt_type);
-                //    }
-                //}
+            let interrupt_option = self.bus.lock().unwrap().timer_tick();
+
+            if let Some(interrupt) = interrupt_option {
+                self.request_interrupt(interrupt);
             }
-            //self.dma_done = self.bus.lock().unwrap().dma_tick();
         }
     }
 
@@ -357,6 +429,7 @@ impl<'a> CpuContext<'a> {
         if self.current_instruction.condition == ConditionType::None {
             return true;
         }
+
         let z = self.cpu_registers.f.get_flag(Flags::Z);
         let c = self.cpu_registers.f.get_flag(Flags::C);
 
@@ -368,9 +441,6 @@ impl<'a> CpuContext<'a> {
             ConditionType::None => true,
         };
 
-        if condition {
-            self.emu_cycles(1);
-        }
         condition
     }
 }

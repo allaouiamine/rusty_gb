@@ -18,8 +18,26 @@ impl<'a> CpuExtension for CpuContext<'a> {
                 self.disable_master_interrupt();
                 Ok(())
             }
+            CustomAction::EI => {
+                self.enable_master_interrupt_next_instruction();
+                Ok(())
+            }
+            CustomAction::Halt => {
+                self.halt();
+                Ok(())
+            }
             CustomAction::STOP => {
                 panic!("STOP instruction called!");
+            }
+            CustomAction::PushPC => {
+                self.push_pc();
+                Ok(())
+            }
+            CustomAction::PopPC => {
+                let address: u16 = self.stack_pop16().try_into()?;
+                self.cpu_registers
+                    .set_register_16(&RegisterType::PC, address);
+                Ok(())
             }
         }
     }
@@ -30,15 +48,15 @@ impl<'a> CpuExtension for CpuContext<'a> {
          */
         let register_type = REGISTERS_LOOKUP[prefix_cb as usize & 0b111];
 
+        self.emu_cycles(4); // Decoding the prefix CB takes 4 cycle
+
         let fetched_data: u8 = match &register_type {
             RegisterType::HL => {
-                self.emu_cycles(1); // 16 bit register
+                self.emu_cycles(4); // 16 bit register
                 self.bus_read(self.cpu_registers.get_register_16(&RegisterType::HL))
             }
             other => self.cpu_registers.get_register(&other),
         };
-
-        self.emu_cycles(1); // Decoding the prefix CB takes 1 cycle
 
         let alu_output = CbOperation::execute(prefix_cb, fetched_data, &self.cpu_registers)?;
 
@@ -46,7 +64,7 @@ impl<'a> CpuExtension for CpuContext<'a> {
             .set_flags(alu_output.z, alu_output.n, alu_output.h, alu_output.c);
         match register_type {
             RegisterType::HL => {
-                self.emu_cycles(1); // 16 bit register
+                self.emu_cycles(4); // 16 bit register
                 self.bus_write(
                     self.cpu_registers.get_register_16(&RegisterType::HL),
                     alu_output.value.try_into()?,

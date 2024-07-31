@@ -9,6 +9,8 @@ pub struct Instruction<'a> {
     pub instruction_type: InstructionType,
     pub execution_plan: ExecutionPlan,
     pub condition: ConditionType,
+    pub cpu_cycles: usize,
+    pub cpu_cycles_condition_fails: usize,
     pub parameter: Option<u8>,
 }
 
@@ -20,6 +22,8 @@ impl<'i> Default for Instruction<'i> {
             condition: Default::default(),
             parameter: Default::default(),
             execution_plan: Default::default(),
+            cpu_cycles: Default::default(),
+            cpu_cycles_condition_fails: Default::default(),
         }
     }
 }
