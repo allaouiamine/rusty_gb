@@ -46,7 +46,8 @@ impl TryFrom<ValueEnum> for i8 {
     fn try_from(value: ValueEnum) -> Result<Self, Self::Error> {
         match value {
             ValueEnum::SignedData8(v) => Ok(v),
-            ValueEnum::Data8(_) | ValueEnum::Data16(_) | ValueEnum::None => Err(Error),
+            ValueEnum::Data8(v) => Ok(v as i8),
+            ValueEnum::Data16(_) | ValueEnum::None => Err(Error),
         }
     }
 }

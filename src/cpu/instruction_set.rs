@@ -2348,7 +2348,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xC7 => unimplemented!("RST 00H"),
+            0xC7 => Self {
+                description: "RST 00H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x00),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xC8 => Self {
                 description: "RET Z",
                 instruction_type: InstructionType::RET,
@@ -2434,7 +2445,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xCF => unimplemented!("RST 08H"),
+            0xCF => Self {
+                description: "RST 08H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x08),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xD0 => Self {
                 description: "RET NC",
                 instruction_type: InstructionType::RET,
@@ -2510,7 +2532,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xD7 => unimplemented!("RST 10H"),
+            0xD7 => Self {
+                description: "RST 10H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x10),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xD8 => Self {
                 description: "RET C",
                 instruction_type: InstructionType::RET,
@@ -2524,7 +2557,17 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0xD9 => unimplemented!("RETI"),
+            0xD9 => Self {
+                description: "RETI",
+                instruction_type: InstructionType::RETI,
+                cpu_cycles: 16,
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RETI,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xDA => Self {
                 description: "JP C,a16",
                 instruction_type: InstructionType::JP,
@@ -2566,7 +2609,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xDF => unimplemented!("RST 18H"),
+            0xDF => Self {
+                description: "RST 18H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x18),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
 
             0xE0 => Self {
                 description: "LDH (a8),A",
@@ -2630,7 +2684,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xE7 => unimplemented!("RST 20H"),
+            0xE7 => Self {
+                description: "RST 20H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x20),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xE8 => Self {
                 description: "ADD SP,r8",
                 instruction_type: InstructionType::ADD,
@@ -2681,7 +2746,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xEF => unimplemented!("RST 28H"),
+            0xEF => Self {
+                description: "RST 28H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x28),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xF0 => Self {
                 description: "LDH A,(a8)",
                 instruction_type: InstructionType::LDH,
@@ -2753,7 +2829,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xF7 => unimplemented!("RST 30H"),
+            0xF7 => Self {
+                description: "RST 30H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x30),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
             0xF8 => Self {
                 description: "LD HL,SP+r8",
                 instruction_type: InstructionType::LD,
@@ -2816,7 +2903,18 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0xFF => unimplemented!("RST 38H"),
+            0xFF => Self {
+                description: "RST 38H",
+                instruction_type: InstructionType::RST,
+                cpu_cycles: 16,
+                parameter: Some(0x38),
+                execution_plan: ExecutionPlan::with_custom_action(
+                    FetchAction::None,
+                    CustomAction::RST,
+                    StoreAction::None,
+                ),
+                ..Default::default()
+            },
         }
     }
 }

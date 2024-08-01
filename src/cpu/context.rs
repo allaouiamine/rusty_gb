@@ -61,7 +61,7 @@ impl<'a> CpuContext<'a> {
         self.interrupt_master_enabled_next_instruction = true;
     }
 
-    fn enable_master_interrupt(&mut self) {
+    pub fn enable_master_interrupt(&mut self) {
         self.interrupt_master_enabled = true;
     }
 
@@ -234,10 +234,11 @@ impl<'a> CpuContext<'a> {
                     } else {
                         self.cpu_registers.get_register_16(register_type_16)
                     };
-                    let offset = self.get_next_pc_value() as i8;
+                    let offset_unsigned = self.get_next_pc_value();
+                    let offset = offset_unsigned as i8;
 
                     let h = Some(check_half_carry_relative(register_value, offset));
-                    let c = Some(check_carry_relative(register_value, offset));
+                    let c = Some(check_carry_relative(register_value, offset_unsigned));
                     let sum = add_relative(register_value, offset);
 
                     if self.current_instruction.instruction_type != InstructionType::JR {
@@ -353,6 +354,7 @@ impl<'a> CpuContext<'a> {
     }
 
     fn dbg_test_rom(&mut self) {
+        //println!("{}", self);
         let mut bus = self.bus.lock().unwrap();
         bus.dbg_update();
         bus.dbg_print();
@@ -380,7 +382,6 @@ impl<'a> CpuContext<'a> {
     pub fn execute_current_instruction(&mut self) -> anyhow::Result<()> {
         let fetched_data = self.fetch_data()?;
 
-        println!("{}", self);
         self.dbg_test_rom();
 
         if self.check_condition() {

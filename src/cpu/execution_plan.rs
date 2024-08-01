@@ -2,8 +2,8 @@ use super::{
     alu_operations::{
         AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation,
         AndOperation, CcfOperation, CpOperation, CplOperation, DaaOperation, DecOperation,
-        DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, ScfOperation,
-        SubOperation, XorOperation,
+        DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SbcOperation,
+        ScfOperation, SubOperation, XorOperation,
     },
     RegisterType,
 };
@@ -152,7 +152,9 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Sub(register_type) => {
                 Box::new(SubOperation::new(register_type))
             }
-            ArithmeticLogicUnitAction::SubWithCarry(_) => todo!(),
+            ArithmeticLogicUnitAction::SubWithCarry(register_type) => {
+                Box::new(SbcOperation::new(register_type))
+            }
             ArithmeticLogicUnitAction::Rra => Box::new(RraOperation::new()),
             ArithmeticLogicUnitAction::And => Box::new(AndOperation::new()),
             ArithmeticLogicUnitAction::Xor => Box::new(XorOperation::new()),
@@ -176,6 +178,8 @@ pub enum CustomAction {
     STOP,
     PushPC,
     PopPC,
+    RETI,
+    RST,
 }
 
 #[derive(Debug, Clone, Copy)]

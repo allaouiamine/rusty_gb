@@ -39,6 +39,22 @@ impl<'a> CpuExtension for CpuContext<'a> {
                     .set_register_16(&RegisterType::PC, address);
                 Ok(())
             }
+            CustomAction::RETI => {
+                let address: u16 = self.stack_pop16().try_into()?;
+                self.cpu_registers
+                    .set_register_16(&RegisterType::PC, address);
+                self.enable_master_interrupt();
+                Ok(())
+            }
+            CustomAction::RST => {
+                let address = self.current_instruction.parameter.ok_or(anyhow::anyhow!(
+                    "a parameter muse be provided for RST operations"
+                ))? as u16;
+                self.push_pc();
+                self.cpu_registers
+                    .set_register_16(&RegisterType::PC, address);
+                Ok(())
+            }
         }
     }
     fn process_cb(&mut self, prefix_cb: u8) -> anyhow::Result<()> {

@@ -15,12 +15,11 @@ pub fn add_relative(n: u16, r: i8) -> u16 {
     n.wrapping_add(r as u16)
 }
 
-pub fn check_carry_relative(n: u16, r: i8) -> bool {
-    add_relative(n & 0xFF, r) > 0xFF
+pub fn check_carry_relative(n: u16, r: u8) -> bool {
+    (n & 0xFF).wrapping_add(r as u16) > 0xFF
 }
 
 pub fn check_half_carry_relative(n: u16, r: i8) -> bool {
-    // TODO: Make sure this is correct
     add_relative(n & 0x0F, r & 0x0F) > 0x0F
 }
 
@@ -49,7 +48,7 @@ pub fn add_with_carry(left_value: u8, right_value: u8, carry: u8) -> (u8, bool, 
 pub fn sub_with_carry(left: u8, right: u8, carry: u8) -> (u8, bool, bool, bool, bool) {
     let diff = left - right - carry;
     let z = diff == 0;
-    let c = left < right + carry;
+    let c = (left as u16) < (right as u16) + (carry as u16);
     let h = (left & 0x0F) < (right & 0x0F) + carry;
     (diff, z, true, h, c)
 }

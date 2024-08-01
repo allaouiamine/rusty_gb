@@ -6,7 +6,7 @@ use std::{
 
 use rusty_gb::{bus::GbBus, cpu::CpuContext, emu::EmuContext};
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         print!("Usage: {} <rom_file>\n", args[0]);
@@ -15,5 +15,5 @@ fn main() {
 
     let bus = Arc::new(Mutex::new(GbBus::new(args[1].clone())));
     let mut cpu_context = CpuContext::new(bus);
-    EmuContext.run(&mut cpu_context);
+    Ok(EmuContext.run(&mut cpu_context)?)
 }
