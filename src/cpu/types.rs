@@ -1,12 +1,12 @@
 use std::fmt::Error;
 
+#[derive(Debug)]
 pub struct AluOutput {
     pub value: ValueEnum,
     pub z: Option<bool>,
     pub n: Option<bool>,
     pub h: Option<bool>,
     pub c: Option<bool>,
-    pub additional_cpu_cycles: usize,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ValueEnum {

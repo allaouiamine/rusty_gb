@@ -2,8 +2,8 @@ use super::{
     alu_operations::{
         AddOperation, AddOperation16, AddRelativeOperation, AddWithCarryOperation, AluOperation,
         AndOperation, CcfOperation, CpOperation, CplOperation, DaaOperation, DecOperation,
-        DecOperation16, IncOperation, IncOperation16, OrOperation, RraOperation, SbcOperation,
-        ScfOperation, SubOperation, XorOperation,
+        DecOperation16, IncOperation, IncOperation16, OrOperation, RlaOperation, RlcaOperation,
+        RraOperation, RrcaOperation, SbcOperation, ScfOperation, SubOperation, XorOperation,
     },
     RegisterType,
 };
@@ -123,10 +123,13 @@ pub enum ArithmeticLogicUnitAction {
     Cp,  // Compare the value of a register A, B, C, D, E, H or L with register A
 
     // Other
-    Daa, // Decimal adjust register A
-    Cpl, // Invert register A
-    Scf, // Set carry flag N = 0, H = 0, C = 1
-    Ccf, // Complement carry flag N = 0, H = 0, C = !C
+    Daa,  // Decimal adjust register A
+    Cpl,  // Invert register A
+    Scf,  // Set carry flag N = 0, H = 0, C = 1
+    Ccf,  // Complement carry flag N = 0, H = 0, C = !C
+    Rlca, // Rotate the value of register A to the left
+    Rla,  // Rotate the value of register A to the left through the carry flag
+    Rrca, // Rotate the value of register A to the right
 }
 
 impl ArithmeticLogicUnitAction {
@@ -164,6 +167,9 @@ impl ArithmeticLogicUnitAction {
             ArithmeticLogicUnitAction::Cpl => Box::new(CplOperation::new()),
             ArithmeticLogicUnitAction::Scf => Box::new(ScfOperation::new()),
             ArithmeticLogicUnitAction::Ccf => Box::new(CcfOperation::new()),
+            ArithmeticLogicUnitAction::Rlca => Box::new(RlcaOperation::new()),
+            ArithmeticLogicUnitAction::Rla => Box::new(RlaOperation::new()),
+            ArithmeticLogicUnitAction::Rrca => Box::new(RrcaOperation::new()),
         }
     }
 }

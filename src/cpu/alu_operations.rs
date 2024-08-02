@@ -50,7 +50,6 @@ impl AluOperation for AddOperation {
             n: Some(n),
             h: Some(h),
             c: Some(c),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -89,7 +88,6 @@ impl AluOperation for AddWithCarryOperation {
             n: Some(n),
             h: Some(h),
             c: Some(c),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -134,7 +132,6 @@ impl AluOperation for AddRelativeOperation {
             n: Some(false),
             h,
             c,
-            additional_cpu_cycles: 1,
         })
     }
 }
@@ -173,7 +170,6 @@ impl AluOperation for AddOperation16 {
             n: Some(false),
             h,
             c,
-            additional_cpu_cycles: 1,
         })
     }
 }
@@ -212,7 +208,6 @@ impl AluOperation for SbcOperation {
             n: Some(n),
             h: Some(h),
             c: Some(c),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -248,7 +243,6 @@ impl AluOperation for SubOperation {
             n: Some(n),
             h: Some(h),
             c: Some(c),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -270,7 +264,6 @@ impl AluOperation for IncOperation {
             n: Some(false),
             h: Some(h),
             c: None,
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -292,7 +285,6 @@ impl AluOperation for IncOperation16 {
             n: None,
             h: None,
             c: None,
-            additional_cpu_cycles: 1,
         })
     }
 }
@@ -314,7 +306,6 @@ impl AluOperation for DecOperation {
             n: Some(true),
             h: Some(h),
             c: None,
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -334,31 +325,6 @@ impl AluOperation for DecOperation16 {
             n: None,
             h: None,
             c: None,
-            additional_cpu_cycles: 1,
-        })
-    }
-}
-
-pub struct RraOperation;
-
-impl RraOperation {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl AluOperation for RraOperation {
-    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
-        let carry = cpu_registers.f.get_flag_as_u8(Flags::C);
-        let result = (cpu_registers.a >> 1) | (carry << 7);
-        let c = cpu_registers.a & 0x01 == 1;
-        Ok(AluOutput {
-            value: ValueEnum::Data8(result),
-            z: Some(false),
-            n: Some(false),
-            h: Some(false),
-            c: Some(c),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -385,7 +351,6 @@ impl AluOperation for OrOperation {
             n: Some(false),
             h: Some(false),
             c: Some(false),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -411,7 +376,6 @@ impl AluOperation for XorOperation {
             n: Some(false),
             h: Some(false),
             c: Some(false),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -436,7 +400,6 @@ impl AluOperation for CpOperation {
             n: Some(true),
             h: Some((cpu_registers.a & 0x0F) < (data & 0x0F)),
             c: Some(cpu_registers.a < data),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -463,7 +426,6 @@ impl AluOperation for AndOperation {
             n: Some(false),
             h: Some(true),
             c: Some(false),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -525,7 +487,6 @@ impl AluOperation for DaaOperation {
             n: None,
             h: Some(false),
             c: Some(new_c_flag),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -547,7 +508,6 @@ impl AluOperation for CplOperation {
             n: Some(true),
             h: Some(true),
             c: None,
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -568,7 +528,6 @@ impl AluOperation for ScfOperation {
             n: Some(false),
             h: Some(false),
             c: Some(true),
-            additional_cpu_cycles: 0,
         })
     }
 }
@@ -590,7 +549,95 @@ impl AluOperation for CcfOperation {
             n: Some(false),
             h: Some(false),
             c: Some(c),
-            additional_cpu_cycles: 0,
+        })
+    }
+}
+
+pub struct RlcaOperation;
+
+impl RlcaOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for RlcaOperation {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
+        let carry = cpu_registers.a >> 7;
+        let result = (cpu_registers.a << 1) | carry;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(false),
+            n: Some(false),
+            h: Some(false),
+            c: Some(carry == 1),
+        })
+    }
+}
+
+pub struct RlaOperation;
+
+impl RlaOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for RlaOperation {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
+        let carry_flag = cpu_registers.f.get_flag_as_u8(Flags::C);
+        let carry = cpu_registers.a >> 7;
+        let result = (cpu_registers.a << 1) | carry_flag;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(false),
+            n: Some(false),
+            h: Some(false),
+            c: Some(carry == 1),
+        })
+    }
+}
+
+pub struct RrcaOperation;
+
+impl RrcaOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for RrcaOperation {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
+        let carry = cpu_registers.a & 0x01;
+        let result = (cpu_registers.a >> 1) | (carry << 7);
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(false),
+            n: Some(false),
+            h: Some(false),
+            c: Some(carry == 1),
+        })
+    }
+}
+pub struct RraOperation;
+
+impl RraOperation {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl AluOperation for RraOperation {
+    fn execute(&self, _: ValueEnum, cpu_registers: &CpuRegisters) -> anyhow::Result<AluOutput> {
+        let carry = cpu_registers.f.get_flag_as_u8(Flags::C);
+        let result = (cpu_registers.a >> 1) | (carry << 7);
+        let c = cpu_registers.a & 0x01 == 1;
+        Ok(AluOutput {
+            value: ValueEnum::Data8(result),
+            z: Some(false),
+            n: Some(false),
+            h: Some(false),
+            c: Some(c),
         })
     }
 }

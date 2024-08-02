@@ -81,10 +81,6 @@ impl<'a> CpuContext<'a> {
         self.bus.lock().unwrap().bus_read(0xFFFF)
     }
 
-    fn set_interrupt_enable_register(&mut self, value: u8) {
-        self.bus.lock().unwrap().bus_write(0xFFFF, value);
-    }
-
     pub fn bus_read(&mut self, address: u16) -> u8 {
         self.bus.lock().unwrap().bus_read(address)
     }

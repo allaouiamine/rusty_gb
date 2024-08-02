@@ -81,7 +81,17 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0x07 => unimplemented!("RLCA"),
+            0x07 => Self {
+                description: "RLCA",
+                cpu_cycles: 4,
+                instruction_type: InstructionType::RLCA,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Rlca,
+                    StoreAction::StoreRegister(RegisterType::A),
+                ),
+                ..Default::default()
+            },
             0x08 => Self {
                 description: "LD (a16),SP",
                 instruction_type: InstructionType::LD,
@@ -159,7 +169,17 @@ impl<'i> From<u8> for Instruction<'i> {
                 ),
                 ..Default::default()
             },
-            0x0F => unimplemented!("RRCA"),
+            0x0F => Self {
+                description: "RRCA",
+                cpu_cycles: 4,
+                instruction_type: InstructionType::RRCA,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Rrca,
+                    StoreAction::StoreRegister(RegisterType::A),
+                ),
+                ..Default::default()
+            },
 
             0x10 => Self {
                 description: "STOP 0",
@@ -244,8 +264,17 @@ impl<'i> From<u8> for Instruction<'i> {
                 ..Default::default()
             },
 
-            0x17 => unimplemented!("RLA"),
-
+            0x17 => Self {
+                description: "RLA",
+                cpu_cycles: 4,
+                instruction_type: InstructionType::RLA,
+                execution_plan: ExecutionPlan::new(
+                    FetchAction::FetchRegister(RegisterType::A),
+                    ArithmeticLogicUnitAction::Rla,
+                    StoreAction::StoreRegister(RegisterType::A),
+                ),
+                ..Default::default()
+            },
             0x18 => Self {
                 // This is equivalent to LD PC, PC + R8
                 description: "JR r8",

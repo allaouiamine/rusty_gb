@@ -158,14 +158,14 @@ impl<'a> Display for CpuContext<'a> {
             }
         };
         if let Some(operand_2) = operand_2 {
-            //instruction_str = format!("{} {}", instruction_str, operand_2);
+            instruction_str = format!("{} {}", instruction_str, operand_2);
         }
 
         if self.current_instruction.condition != ConditionType::None {
-            //instruction_str = format!("{} {}", instruction_str, self.current_instruction.condition);
+            instruction_str = format!("{} {}", instruction_str, self.current_instruction.condition);
         }
         if let Some(operand_1) = operand_1 {
-            // instruction_str = format!("{} {}", instruction_str, operand_1);
+            instruction_str = format!("{} {}", instruction_str, operand_1);
         }
         write!(
             f,

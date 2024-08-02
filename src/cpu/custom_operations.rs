@@ -78,17 +78,25 @@ impl<'a> CpuExtension for CpuContext<'a> {
 
         self.cpu_registers
             .set_flags(alu_output.z, alu_output.n, alu_output.h, alu_output.c);
+
         match register_type {
             RegisterType::HL => {
                 self.emu_cycles(4); // 16 bit register
+                if alu_output.value == ValueEnum::None {
+                    return Ok(());
+                }
                 self.bus_write(
                     self.cpu_registers.get_register_16(&RegisterType::HL),
                     alu_output.value.try_into()?,
                 )
             }
-            other => self
-                .cpu_registers
-                .set_register(&other, alu_output.value.try_into()?),
+            other => {
+                if alu_output.value == ValueEnum::None {
+                    return Ok(());
+                }
+                self.cpu_registers
+                    .set_register(&other, alu_output.value.try_into()?)
+            }
         }
         Ok(())
     }
@@ -173,7 +181,6 @@ impl CbOperation {
                     n: Some(false),
                     h: Some(false),
                     c: Some(carry),
-                    additional_cpu_cycles: 0,
                 }
             }
             0b01 => {
@@ -181,11 +188,10 @@ impl CbOperation {
                 let bit_test_mask = 1 << ((prefix_cb >> 3) & 0b111);
                 AluOutput {
                     value: ValueEnum::None,
-                    z: Some((fetched_data & bit_test_mask) == bit_test_mask),
+                    z: Some((fetched_data & bit_test_mask) == 0),
                     n: Some(false),
                     h: Some(true),
                     c: None,
-                    additional_cpu_cycles: 0,
                 }
             }
             0b10 => {
@@ -198,7 +204,6 @@ impl CbOperation {
                     n: None,
                     h: None,
                     c: None,
-                    additional_cpu_cycles: 0,
                 }
             }
             0b11 => {
@@ -211,7 +216,6 @@ impl CbOperation {
                     n: None,
                     h: None,
                     c: None,
-                    additional_cpu_cycles: 0,
                 }
             }
             _ => panic!("operation_class can only be 00, 01, 10 or 11"),
