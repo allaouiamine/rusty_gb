@@ -1,15 +1,19 @@
-use super::{Serial, Timer};
+use std::sync::{Arc, Mutex};
+
+use super::{Serial, Timer, LCD};
 
 pub struct IO {
     serial: Serial,
+    pub lcd: Arc<Mutex<LCD>>,
     pub timer: Timer,
     interrupt_flag_register: u8,
 }
 
 impl IO {
-    pub fn new() -> Self {
+    pub fn new(lcd: Arc<Mutex<LCD>>) -> Self {
         Self {
             serial: Serial::new(),
+            lcd,
             timer: Timer::new(),
             interrupt_flag_register: 0,
         }
@@ -29,6 +33,8 @@ impl IO {
             self.timer.timer_read(address)
         } else if address == 0xFF0F {
             self.get_if_flag()
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            self.lcd.lock().unwrap().lcd_read(address)
         } else {
             println!("UNSUPPORTED io_read({:#02X}) - IO", address);
             //unimplemented!();
@@ -42,6 +48,8 @@ impl IO {
             self.timer.timer_write(address, value);
         } else if address == 0xFF0F {
             self.set_if_flag(value);
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            self.lcd.lock().unwrap().lcd_write(address, value);
         } else {
             println!("UNSUPPORTED io_write({:#02X}, {:#02X})", address, value);
             //unimplemented!();

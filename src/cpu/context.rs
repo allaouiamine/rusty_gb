@@ -411,14 +411,25 @@ impl<'a> CpuContext<'a> {
     }
 
     pub fn emu_cycles(&mut self, ticks: usize) {
-        for _ in 0..ticks {
-            self.ticks += 1;
+        let machine_ticks = ticks / 4;
+        for _ in 0..machine_ticks {
+            for _ in 0..4 {
+                self.ticks += 1;
 
-            let interrupt_option = self.bus.lock().unwrap().timer_tick();
+                let interrupt_option = self.bus.lock().unwrap().timer_tick();
 
-            if let Some(interrupt) = interrupt_option {
-                self.request_interrupt(interrupt);
+                if let Some(interrupt) = interrupt_option {
+                    println!("Interrupt requested: {:?}", interrupt);
+                    self.request_interrupt(interrupt);
+                }
+
+                let interrupts = self.bus.lock().unwrap().ppu_tick();
+                for interrupt in interrupts {
+                    println!("Interrupt requested: {:?}", interrupt);
+                    self.request_interrupt(interrupt);
+                }
             }
+            self.bus.lock().unwrap().dma_tick();
         }
     }
 

@@ -1,107 +1,57 @@
-use core::panic;
+use std::{
+    sync::{Arc, Mutex},
+    usize,
+};
 
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::cpu::CpuContext;
+use crate::bus::Bus;
 
 const TILE_COLORS: [u32; 4] = [0xFFFFFF, 0xAAAAAA, 0x555555, 0x000000];
+const DEFAULT_BG_COLOR: u32 = 0x113F11;
 
-#[derive(Copy, Clone)]
-pub struct TilePosition {
-    x: usize,
-    y: usize,
-}
+const DBG_START_ADDRESS: u16 = 0x8000;
 
 pub struct UI {
     pub dbg_window: Window,
     pub width: usize,
     pub height: usize,
     pub buffer: Vec<u32>,
+    pub bus: Arc<Mutex<dyn Bus>>,
 }
 
 impl UI {
-    pub fn new(width: usize, height: usize, scale_factor: Scale) -> Self {
-        let buffer = vec![0x113F11; width * height];
+    const TILE_WIDTH: usize = 8;
+    const TILE_LENGTH: usize = 8;
+    pub fn new(
+        width: usize,
+        height: usize,
+        scale_factor: Scale,
+        bus: Arc<Mutex<dyn Bus>>,
+    ) -> anyhow::Result<Self> {
+        let buffer = vec![DEFAULT_BG_COLOR; width * height];
         let mut options = WindowOptions::default();
         options.scale_mode = ScaleMode::AspectRatioStretch;
         options.scale = scale_factor;
-        let mut dbg_window = Window::new("Debug Window - ESC to exit", width, height, options)
-            .unwrap_or_else(|e| {
-                panic!("{}", e);
-            });
+        let mut dbg_window = Window::new("Debug Window - ESC to exit", width, height, options)?;
 
         dbg_window.set_background_color(0x11, 0x3F, 0x11);
-        // dbg_window.limit_update_rate(Some(std::time::Duration::from_micros(33300)));
-        Self {
+        dbg_window.limit_update_rate(Some(std::time::Duration::from_micros(16600))); // 60 FPS
+        Ok(Self {
             dbg_window,
             buffer,
             width,
             height,
-        }
+            bus,
+        })
     }
 
-    pub fn update(&mut self, cpu: &CpuContext) {
-        if cpu.dma_done {
-            for tile_number in 0..384 {
-                let tile = cpu.bus.fetch_tile(tile_number);
-                self.update_buffer_with_tile(tile_number, tile);
-            }
-        } else {
-            if let Some(address) = cpu.last_written_address {
-                let tile_number = ((address - 0x8000) >> 4) as usize;
-                if tile_number > 383 {
-                    return;
-                }
-                let tile = cpu.bus.fetch_tile(tile_number);
-                self.update_buffer_with_tile(tile_number, tile)
-            } else {
-                return;
-            }
-        }
-
-        self.dbg_window
-            .update_with_buffer(&self.buffer, self.width, self.height)
-            .unwrap();
-    }
-
-    fn update_buffer_with_tile(&mut self, tile_number: usize, tile_array: [u8; 16]) {
-        let mut s = String::new();
-        let mut index = 0;
-        while index < tile_array.len() {
-            s = format!(
-                "{} {:02X} {:02X}",
-                s,
-                tile_array[index],
-                tile_array[index + 1]
-            );
-            index += 2
-        }
-
-        let mut position = TilePosition {
-            x: (tile_number & 15) * 8,
-            y: (tile_number >> 4) * 8,
-        };
-
-        for line_number in 0..8 {
-            let tile_line = Self::combine_tile_bytes(
-                tile_array[line_number * 2],
-                tile_array[line_number * 2 + 1],
-            );
-            self.write_tile_line_to_buffer(tile_line, position);
-            position.y += 1;
+    fn update_dbg_window(&mut self) {
+        for tile_number in 0..384 {
+            self.draw_tile(tile_number as usize);
         }
     }
-
-    fn write_tile_line_to_buffer(&mut self, tile_line: [u32; 8], position: TilePosition) {
-        let mut x = position.x;
-        for pixel in tile_line {
-            let index = x + (position.y * self.width);
-            self.buffer[index] = pixel;
-            x += 1;
-        }
-    }
-
-    pub fn combine_tile_bytes(byte1: u8, byte2: u8) -> [u32; 8] {
+    pub fn combine_tile_bytes_to_tile_line(byte1: u8, byte2: u8) -> [u32; 8] {
         let mut line: [u32; 8] = [0; 8];
         for bit in 0..8 {
             let hi = ((byte1 as u16) & (1 << bit)) << 1;
@@ -111,24 +61,31 @@ impl UI {
             line[bit] = TILE_COLORS[color_index];
         }
         line.reverse();
-
         line
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::UI;
-    #[test]
-    pub fn combine_tile_bytes_ok() {
-        let expected = [0, 0, 0, 0, 0, 0, 0, 0xFFFFFF];
-        let line = UI::combine_tile_bytes(0xFE, 0xFE);
-        for (index, pixel) in line.iter().enumerate() {
-            assert_eq!(
-                *pixel, expected[index],
-                "index: {} - {:X} == {:X}",
-                index, *pixel, expected[index]
-            );
+    fn draw_tile(&mut self, tile_number: usize) {
+        let bus = self.bus.lock().unwrap();
+        let tile_address = DBG_START_ADDRESS + (tile_number as u16 * 16);
+        let mut buffer_adjust = (tile_number / 16) * self.width * (Self::TILE_WIDTH - 1);
+        for y in 0..Self::TILE_LENGTH {
+            let byte_1 = bus.bus_read(tile_address + (y as u16* 2));
+            let byte_2 = bus.bus_read(tile_address + (y as u16* 2) + 1);
+
+            let start_index = tile_number * Self::TILE_WIDTH + buffer_adjust;
+            let end_index = start_index + 8;
+            self.buffer[start_index..end_index]
+                .clone_from_slice(&Self::combine_tile_bytes_to_tile_line(byte_1, byte_2));
+            buffer_adjust += self.width;
         }
+    }
+
+    pub fn run(&mut self) -> anyhow::Result<()> {
+        while self.dbg_window.is_open() && !self.dbg_window.is_key_down(minifb::Key::Escape) {
+            self.dbg_window
+                .update_with_buffer(&self.buffer, self.width, self.height)?;
+            self.update_dbg_window();
+        }
+        anyhow::bail!("UI closed");
     }
 }
