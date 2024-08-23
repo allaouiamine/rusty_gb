@@ -14,13 +14,12 @@ FF80	FFFE	High RAM (HRAM)
 FFFF	FFFF	Interrupt Enable register (IE)
 */
 
-use std::{sync::{Arc, Mutex}, thread, time::Duration};
+use std::sync::{Arc, Mutex};
 
 use crate::{
-    cartridge::Cartridge, cpu::types::InterruptType, graphics::PPU, io::{IO, LCD}, ram::RamContext
+    cartridge::Cartridge, cpu::types::InterruptType, dma::DMA, graphics::PPU, io::IO,
+    ram::RamContext,
 };
-
-// use crate::ram::RamContext;
 
 pub trait Bus: Send + Sync {
     fn bus_read(&self, address: u16) -> u8;
@@ -30,6 +29,7 @@ pub trait Bus: Send + Sync {
     fn timer_tick(&mut self) -> Option<InterruptType>;
     fn ppu_tick(&mut self) -> Vec<InterruptType>;
     fn dma_tick(&mut self) -> bool;
+    fn get_video_buffer(&self) -> &Vec<u32>;
 }
 
 pub struct GbBus {
@@ -39,6 +39,7 @@ pub struct GbBus {
     interrupt_enable_register: u8,
 
     pub ppu: PPU,
+    dma: Arc<Mutex<DMA>>,
 
     dbg_message: [u8; 1024],
     dbg_message_size: usize,
@@ -62,15 +63,18 @@ impl Bus for GbBus {
             0
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            if self.io.lcd.lock().unwrap().dma_state.dma_is_transferring() {
+            if self.dma.lock().unwrap().dma_is_transferring() {
                 0xFF
             } else {
                 self.ppu.oam_read(address)
             }
-            // unimplemented!();
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
             0
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            // LCD registers. This is a special case here because the LCD is written as part
+            // of the PPU to avoid multiple mutable borrows or mutexes.
+            self.ppu.lcd_read(address)
         } else if address < 0xFF80 {
             // IO registers
             self.io.io_read(address)
@@ -100,12 +104,16 @@ impl Bus for GbBus {
             // Mirror of C000~DDFF (ECHO RAM)	Nintendo says use of this area is prohibited.
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            if self.io.lcd.lock().unwrap().dma_state.dma_is_transferring() {
+            if self.dma.lock().unwrap().dma_is_transferring() {
                 return;
             }
             self.ppu.oam_write(address, value, false);
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            // LCD registers. This is a special case here because the LCD is written as part
+            // of the PPU to avoid multiple mutable borrows or mutexes.
+            self.ppu.lcd_write(address, value)
         } else if address < 0xFF80 {
             // IO registers
             self.io.io_write(address, value)
@@ -150,7 +158,7 @@ impl Bus for GbBus {
     }
 
     fn dma_tick(&mut self) -> bool {
-        let dma = &mut self.io.lcd.lock().unwrap().dma_state;
+        let dma = &mut self.dma.lock().unwrap();
         if !dma.active {
             return false;
         }
@@ -180,6 +188,10 @@ impl Bus for GbBus {
     fn ppu_tick(&mut self) -> Vec<InterruptType> {
         self.ppu.tick()
     }
+
+    fn get_video_buffer(&self) -> &Vec<u32> {
+        &self.ppu.video_buffer
+    }
 }
 
 impl GbBus {
@@ -189,15 +201,14 @@ impl GbBus {
         // load the cartridge
         let cartridge = Cartridge::load(rom_file);
 
-        // initialize the RAM
         let ram: RamContext = RamContext::new();
+        let io = IO::new();
 
-        let lcd = Arc::new(Mutex::new(LCD::new()));
-        let lcd_clone = Arc::clone(&lcd);
-        let io = IO::new(lcd);
-
-        let ppu = PPU::new(lcd_clone);
-
+        // DMA can be used directly from the bus or from the PPU/LCD
+        // Without the interior mutability of the Mutex, it would be
+        // very difficult to manage the mutable borrows of the DMA
+        let dma = Arc::new(Mutex::new(DMA::new()));
+        let ppu = PPU::new(Arc::clone(&dma));
 
         Self {
             cartridge,
@@ -205,6 +216,7 @@ impl GbBus {
             io,
             interrupt_enable_register: 0,
             ppu,
+            dma,
             dbg_message: [0; 1024],
             dbg_message_size: 0,
         }

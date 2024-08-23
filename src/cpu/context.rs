@@ -172,7 +172,8 @@ impl<'a> CpuContext<'a> {
         self.interrupt_master_enabled = false;
     }
 
-    pub fn cpu_step(&mut self) -> anyhow::Result<bool> {
+    pub fn cpu_step(&mut self) -> anyhow::Result<usize> {
+        let current_ticks = self.ticks;
         self.dma_done = false;
         self.last_written_address = None;
 
@@ -197,7 +198,7 @@ impl<'a> CpuContext<'a> {
             self.interrupt_master_enabled = true;
         }
 
-        Ok(true)
+        Ok(current_ticks - self.ticks)
     }
 
     fn fetch_data(&mut self) -> anyhow::Result<ValueEnum> {
@@ -353,7 +354,7 @@ impl<'a> CpuContext<'a> {
         //println!("{}", self);
         let mut bus = self.bus.lock().unwrap();
         bus.dbg_update();
-        bus.dbg_print();
+        //bus.dbg_print();
     }
 
     fn execute_alu(&mut self, fetched_data: ValueEnum) -> anyhow::Result<ValueEnum> {

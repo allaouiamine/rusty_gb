@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::{cpu::types::InterruptType, dma::DMA};
 
 const DEFAULT_COLORS: [u32; 4] = [0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000];
@@ -6,9 +8,9 @@ const DEFAULT_COLORS: [u32; 4] = [0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000
 pub struct LCD {
     lcd_control: u8,   // LCDC 0xFF40
     lcd_status: u8,    // STAT 0xFF41
-    scroll_y: u8,      // SCY 0xFF42
-    scroll_x: u8,      // SCX 0xFF43
-    ly: u8,            // LY 0xFF44
+    pub scroll_y: u8,      // SCY 0xFF42
+    pub scroll_x: u8,      // SCX 0xFF43
+    pub ly: u8,            // LY 0xFF44
     ly_compare: u8,    // LYC 0xFF45
     dma: u8,           // DMA 0xFF46
     bg_palette: u8,    // BGP 0xFF47
@@ -17,20 +19,20 @@ pub struct LCD {
     window_y: u8,      // WY 0xFF4A
     window_x: u8,      // WX 0xFF4B
 
-    pub dma_state: DMA,
-    bg_colors: [u32; 4],
+    pub dma_state: Arc<Mutex<DMA>>,
+    pub bg_colors: [u32; 4],
     sprite_0_colors: [u32; 4],
     sprite_1_colors: [u32; 4],
 }
 
 impl LCD {
-    pub fn new() -> Self {
+    pub fn new(dma_state: Arc<Mutex<DMA>>) -> Self {
         Self {
             lcd_control: 0x91,
             bg_palette: 0xFC,
             obj_palette_0: 0xFF,
             obj_palette_1: 0xFF,
-            dma_state: DMA::new(),
+            dma_state,
             bg_colors: DEFAULT_COLORS,
             sprite_0_colors: DEFAULT_COLORS,
             sprite_1_colors: DEFAULT_COLORS,
@@ -51,10 +53,6 @@ impl LCD {
     pub fn lcd_interrupt_status_get(&self, status: LCDStatusSelect) -> bool {
         let status_int = status as u8;
         self.lcd_status & status_int != 0
-    }
-
-    pub fn lcd_ly_get(&self) -> u8 {
-        self.ly
     }
 
     pub fn lcd_ly_reset(&mut self) {
@@ -114,7 +112,7 @@ impl LCD {
             0xFF46 => {
                 self.dma = value;
                 println!("DMA START: {:#02X}", value);
-                self.dma_state.dma_start(value);
+                self.dma_state.lock().unwrap().dma_start(value);
             }
             0xFF47 => {
                 self.bg_colors = self.get_updated_palette(value);
@@ -156,8 +154,24 @@ impl LCD {
         self.lcd_control & (1 << bit) != 0
     }
 
-    pub fn get_bg_window_enable_priority(&self) -> bool {
+    pub fn get_bg_window_enable(&self) -> bool {
         self.get_lcd_control_bit(0)
+    }
+
+    pub fn get_background_data_area(&self) -> u16 {
+        if self.get_lcd_control_bit(4) {
+            0x8000
+        } else {
+            0x8800
+        }
+    }
+
+    pub fn get_background_map_area(&self) -> u16 {
+        if self.get_lcd_control_bit(3) {
+            0x9C00
+        } else {
+            0x9800
+        }
     }
 }
 

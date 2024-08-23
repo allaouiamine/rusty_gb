@@ -1,6 +1,5 @@
 use crate::{
-    cpu::types::InterruptType,
-    io::lcd::{LCDMode, LCDStatusSelect},
+    cpu::types::InterruptType, graphics::{constants::X_RESOLUTION, pixel_pipeline::PixelPipelineExt}, io::lcd::{LCDMode, LCDStatusSelect}
 };
 
 use super::{
@@ -20,13 +19,22 @@ impl PPUStateMachine for PPU {
     fn ppu_mode_oam(&mut self) -> Vec<InterruptType> {
         if self.line_ticks >= 80 {
             self.lcd_status_mode_set(LCDMode::PixelTransfer);
+
+            self.pixel_fifo.reset_oam();
         }
         vec![]
     }
 
     fn ppu_mode_transfer(&mut self) -> Vec<InterruptType> {
-        if self.line_ticks >= 80 + 172 {
+        self.pipeline_process();
+
+        if self.pixel_fifo.pushed_x >= X_RESOLUTION as u8  {
+            self.pipeline_fifo_reset();
             self.lcd_status_mode_set(LCDMode::HorizentalBlank);
+
+            if self.lcd_interrupt_status_get(LCDStatusSelect::VBlank) {
+                return vec![InterruptType::LCDStat];
+            }
         }
         vec![]
     }
@@ -38,7 +46,7 @@ impl PPUStateMachine for PPU {
                 interrupts.push(interrupt);
             }
 
-            if self.lcd_ly_get() >= Y_RESOLUTION as u8 {
+            if self.lcd.ly >= Y_RESOLUTION as u8 {
                 self.lcd_status_mode_set(LCDMode::VerticalBlank);
 
                 interrupts.push(InterruptType::VBLANK);
@@ -63,7 +71,7 @@ impl PPUStateMachine for PPU {
             if let Some(interrupt) = self.ly_increment() {
                 interrupts.push(interrupt);
             }
-            if self.lcd_ly_get() >= LINES_PER_FRAME {
+            if self.lcd.ly >= LINES_PER_FRAME {
                 self.lcd_status_mode_set(LCDMode::OAMSearch);
                 self.ly_reset();
             }
@@ -74,7 +82,7 @@ impl PPUStateMachine for PPU {
     }
 
     fn ppu_step(&mut self) -> Vec<InterruptType> {
-        let lcd_status_mode = self.lcd.lock().unwrap().lcd_status_mode_get();
+        let lcd_status_mode = self.lcd.lcd_status_mode_get();
         match lcd_status_mode {
             LCDMode::HorizentalBlank => self.ppu_mode_hblank(),
             LCDMode::VerticalBlank => self.ppu_mode_vblank(),

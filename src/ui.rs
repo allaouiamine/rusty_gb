@@ -5,7 +5,7 @@ use std::{
 
 use minifb::{Scale, ScaleMode, Window, WindowOptions};
 
-use crate::bus::Bus;
+use crate::{bus::Bus, graphics::constants::{X_RESOLUTION, Y_RESOLUTION}};
 
 const TILE_COLORS: [u32; 4] = [0xFFFFFF, 0xAAAAAA, 0x555555, 0x000000];
 const DEFAULT_BG_COLOR: u32 = 0x113F11;
@@ -13,6 +13,7 @@ const DEFAULT_BG_COLOR: u32 = 0x113F11;
 const DBG_START_ADDRESS: u16 = 0x8000;
 
 pub struct UI {
+    pub main_window: Window,
     pub dbg_window: Window,
     pub width: usize,
     pub height: usize,
@@ -34,16 +35,25 @@ impl UI {
         options.scale_mode = ScaleMode::AspectRatioStretch;
         options.scale = scale_factor;
         let mut dbg_window = Window::new("Debug Window - ESC to exit", width, height, options)?;
+        let mut main_window = Window::new("Gameboy Emulator", X_RESOLUTION, Y_RESOLUTION, options.clone())?;
 
         dbg_window.set_background_color(0x11, 0x3F, 0x11);
+        main_window.set_background_color(0x11, 0x3F, 0x11);
         dbg_window.limit_update_rate(Some(std::time::Duration::from_micros(16600))); // 60 FPS
+        main_window.limit_update_rate(Some(std::time::Duration::from_micros(16600))); // 60 FPS
         Ok(Self {
+            main_window,
             dbg_window,
             buffer,
             width,
             height,
             bus,
         })
+    }
+
+    fn align_window(&mut self) {
+        // let (x, y) = self.main_window.get_position();
+        //self.dbg_window.set_position(x + X_RESOLUTION as isize, y);
     }
 
     fn update_dbg_window(&mut self) {
@@ -82,8 +92,10 @@ impl UI {
 
     pub fn run(&mut self) -> anyhow::Result<()> {
         while self.dbg_window.is_open() && !self.dbg_window.is_key_down(minifb::Key::Escape) {
+            self.align_window();
             self.dbg_window
                 .update_with_buffer(&self.buffer, self.width, self.height)?;
+            self.main_window.update_with_buffer(self.bus.lock().unwrap().get_video_buffer(), X_RESOLUTION, Y_RESOLUTION)?;
             self.update_dbg_window();
         }
         anyhow::bail!("UI closed");

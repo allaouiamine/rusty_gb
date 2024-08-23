@@ -1,7 +1,11 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex}};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     cpu::types::InterruptType,
+    dma::DMA,
     io::{
         lcd::{LCDMode, LCDStatusSelect},
         LCD,
@@ -20,14 +24,15 @@ pub struct PPU {
 
     pub current_frame: usize,
     pub line_ticks: usize,
-    video_buffer: Vec<u32>,
-    pub lcd: Arc<Mutex<LCD>>,
+    pub video_buffer: Vec<u32>,
+    pub lcd: LCD,
     pub pixel_fifo: PixelFifo,
 }
 
 impl PPU {
-    pub fn new(lcd: Arc<Mutex<LCD>>) -> Self {
-        lcd.lock().unwrap().lcd_status_mode_set(LCDMode::OAMSearch);
+    pub fn new(dma_state: Arc<Mutex<DMA>>) -> Self {
+        let mut lcd = LCD::new(dma_state);
+        lcd.lcd_status_mode_set(LCDMode::OAMSearch);
         Self {
             oam_ram: [OamEntry::new(); 40],
             vram: [0; 0x2000],
@@ -35,28 +40,31 @@ impl PPU {
             line_ticks: 0,
             video_buffer: vec![0; X_RESOLUTION * Y_RESOLUTION],
             lcd,
-            pixel_fifo: PixelFifo::new()
+            pixel_fifo: PixelFifo::new(),
         }
     }
 
-    pub fn lcd_ly_get(&self) -> u8 {
-        self.lcd.lock().unwrap().lcd_ly_get()
+    pub fn get_background_data_area(&self) -> u16 {
+        self.lcd.get_background_data_area()
+    }
+    pub fn get_background_map_area(&self) -> u16 {
+        self.lcd.get_background_map_area()
     }
 
     pub fn ly_increment(&mut self) -> Option<InterruptType> {
-        self.lcd.lock().unwrap().lcd_ly_increment()
+        self.lcd.lcd_ly_increment()
     }
 
     pub fn ly_reset(&mut self) {
-        self.lcd.lock().unwrap().lcd_ly_reset();
+        self.lcd.lcd_ly_reset();
     }
 
     pub fn lcd_status_mode_set(&mut self, mode: LCDMode) {
-        self.lcd.lock().unwrap().lcd_status_mode_set(mode);
+        self.lcd.lcd_status_mode_set(mode);
     }
 
     pub fn lcd_interrupt_status_get(&self, status: LCDStatusSelect) -> bool {
-        self.lcd.lock().unwrap().lcd_interrupt_status_get(status)
+        self.lcd.lcd_interrupt_status_get(status)
     }
 
     pub fn tick(&mut self) -> Vec<InterruptType> {
@@ -68,6 +76,7 @@ impl PPU {
         let (sprite_index, offset) = translate_oam_address(address, false);
         *(&self.oam_ram[sprite_index].get_field_from_offset(offset))
     }
+
     pub fn oam_write(&mut self, address: u16, value: u8, dma: bool) {
         let (sprite_index, offset) = translate_oam_address(address, dma);
         let sprite = &mut self.oam_ram[sprite_index];
@@ -78,6 +87,14 @@ impl PPU {
     }
     pub fn ppu_vram_write(&mut self, address: u16, value: u8) {
         self.vram[address as usize - 0x8000] = value;
+    }
+
+    pub fn lcd_read(&self, address: u16) -> u8 {
+        self.lcd.lcd_read(address)
+    }
+
+    pub fn lcd_write(&mut self, address: u16, value: u8) {
+        self.lcd.lcd_write(address, value);
     }
 }
 
@@ -96,16 +113,16 @@ pub fn translate_oam_address(address: u16, dma: bool) -> (usize, u8) {
     (oam_entry_index as usize, offset as u8)
 }
 
-
+#[derive(Clone, Copy)]
 pub enum PixelFetcherState {
     Tile,
     DataLow,
     DataHigh,
     Idle,
-    Push
+    Push,
 }
 
-pub struct PixelFifo{
+pub struct PixelFifo {
     pub fetcher_state: PixelFetcherState,
     pub fifo: VecDeque<u32>,
     pub line_x: u8,
@@ -144,6 +161,13 @@ impl PixelFifo {
         self.fifo_x = 0;
     }
 
+    pub fn push(&mut self, pixel: u32) {
+        self.fifo.push_back(pixel);
+    }
+
+    pub fn pop(&mut self) -> Option<u32> {
+        self.fifo.pop_front()
+    }
 }
 
 #[cfg(test)]
