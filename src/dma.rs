@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DMA {
     pub active: bool,
     pub byte: u8,

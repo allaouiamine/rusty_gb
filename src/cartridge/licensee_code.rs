@@ -65,7 +65,7 @@ pub enum NewLicenseeCode {
 }
 
 impl NewLicenseeCode {
-    pub fn licensee_name(&self) -> &str{
+    pub fn licensee_name(&self) -> &str {
         match self {
             NewLicenseeCode::None => "None",
             NewLicenseeCode::NintendoRD1 => "Nintendo R&D1",
@@ -354,7 +354,7 @@ pub enum OldLicenseeCode {
 }
 
 impl OldLicenseeCode {
-    pub fn licensee_name(&self) -> &str{
+    pub fn licensee_name(&self) -> &str {
         match self {
             OldLicenseeCode::None => "None",
             OldLicenseeCode::Nintendo => "Nintendo",
@@ -376,7 +376,9 @@ impl OldLicenseeCode {
             OldLicenseeCode::Infogrames => "Infogrames",
             OldLicenseeCode::Nintendo2 => "Nintendo",
             OldLicenseeCode::Bandai => "Bandai",
-            OldLicenseeCode::Indicates => "Indicates that the New licensee code should be used instead.",
+            OldLicenseeCode::Indicates => {
+                "Indicates that the New licensee code should be used instead."
+            }
             OldLicenseeCode::Konami => "Konami",
             OldLicenseeCode::HectorSoft => "HectorSoft",
             OldLicenseeCode::Capcom2 => "Capcom",

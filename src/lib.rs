@@ -4,6 +4,6 @@ pub mod cpu;
 pub mod dma;
 pub mod emu;
 pub mod io;
-pub mod ppu;
 pub mod ram;
+pub mod graphics;
 pub mod ui;

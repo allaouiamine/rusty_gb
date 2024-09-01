@@ -26,16 +26,16 @@ struct RomHeader {
 }
 
 #[allow(dead_code)]
-pub struct Cartridge<'rom> {
-    filename: &'rom str,
+pub struct Cartridge {
+    filename: String,
     rom_size: usize,
     rom_data: Vec<u8>,
     rom_header: RomHeader,
 }
 
-impl<'rom> Cartridge<'rom> {
-    pub fn load(filename: &'rom str) -> Cartridge<'rom> {
-        let mut rom_file = File::open(filename).unwrap();
+impl Cartridge {
+    pub fn load(filename: String) -> Cartridge {
+        let mut rom_file = File::open(&filename).unwrap();
         rom_file.seek(SeekFrom::End(0)).unwrap();
         let rom_size = rom_file.stream_position().unwrap() as usize;
         println!("Found Rom Size: {}", rom_size);

@@ -1,9 +1,7 @@
-use super::{
-    instruction::RegisterType,
-    util::{combine, ValueEnum},
-};
+use super::{util::combine, RegisterType};
 use std::fmt::{Display, Result as FmtResult};
 
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum Flags {
     C = 4,
     H = 5,
@@ -13,7 +11,7 @@ pub enum Flags {
 
 #[derive(Debug, Clone)]
 pub struct FlagsRegister {
-    register: u8,
+    pub register: u8,
 }
 
 impl FlagsRegister {
@@ -28,8 +26,16 @@ impl FlagsRegister {
         self.register & mask == mask
     }
 
+    pub fn get_flag_as_u8(&self, flag: Flags) -> u8 {
+        if self.get_flag(flag) {
+            1
+        } else {
+            0
+        }
+    }
+
     pub fn set_flag(&mut self, flag: Flags, flag_value: bool) {
-        let mask: u8 = 1 << (flag as u8);
+        let mask: u8 = 1 << (flag.clone() as u8);
 
         if flag_value {
             self.register |= mask;
@@ -76,23 +82,9 @@ pub struct CpuRegisters {
     pub sp: u16, // stack pointer
 }
 
-impl Display for CpuRegisters {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        write!(
-            f,
-            "A: {:02X} F: {} BC: {} DE: {} HL: {}",
-            self.a,
-            self.f,
-            self.get_register(RegisterType::BC),
-            self.get_register(RegisterType::DE),
-            self.get_register(RegisterType::HL),
-        )
-    }
-}
-
 impl CpuRegisters {
     pub fn new() -> Self {
-        Self {
+        let regs = Self {
             a: 0x01,
             f: FlagsRegister::new(),
             b: 0,
@@ -103,7 +95,12 @@ impl CpuRegisters {
             l: 0x4D,
             pc: 0x100,
             sp: 0xFFFE,
-        }
+        };
+        //regs.f.set_flag(Flags::Z, false);
+        //regs.f.set_flag(Flags::N, false);
+        //regs.f.set_flag(Flags::H, false);
+        //regs.f.set_flag(Flags::C, false);
+        regs
     }
 
     pub fn set_flags(
@@ -130,77 +127,84 @@ impl CpuRegisters {
         }
     }
 
-    pub fn get_register(&self, register: RegisterType) -> ValueEnum {
+    pub fn get_register(&self, register: &RegisterType) -> u8 {
         match register {
-            RegisterType::A => ValueEnum::Data8(self.a),
-            RegisterType::F => ValueEnum::Data8(self.f.register),
-            RegisterType::B => ValueEnum::Data8(self.b),
-            RegisterType::C => ValueEnum::Data8(self.c),
-            RegisterType::D => ValueEnum::Data8(self.d),
-            RegisterType::E => ValueEnum::Data8(self.e),
-            RegisterType::H => ValueEnum::Data8(self.h),
-            RegisterType::L => ValueEnum::Data8(self.l),
-
-            // need to understand this a bit more
-            RegisterType::AF => ValueEnum::Data16(combine(self.a, self.f.register)),
-            RegisterType::BC => ValueEnum::Data16(combine(self.b, self.c)),
-            RegisterType::DE => ValueEnum::Data16(combine(self.d, self.e)),
-            RegisterType::HL => ValueEnum::Data16(combine(self.h, self.l)),
-
-            RegisterType::PC => ValueEnum::Data16(self.pc),
-            RegisterType::SP => ValueEnum::Data16(self.sp),
+            RegisterType::A => self.a,
+            RegisterType::F => self.f.register,
+            RegisterType::B => self.b,
+            RegisterType::C => self.c,
+            RegisterType::D => self.d,
+            RegisterType::E => self.e,
+            RegisterType::H => self.h,
+            RegisterType::L => self.l,
+            other => panic!("Invalid 8 bits register type: {:?}", other),
         }
     }
 
-    pub fn set_register(&mut self, register: RegisterType, value: ValueEnum) {
-        match value {
-            ValueEnum::Data8(data) => match register {
-                RegisterType::A => self.a = data,
-                RegisterType::F => self.f.register = data,
-                RegisterType::B => self.b = data,
-                RegisterType::C => self.c = data,
-                RegisterType::D => self.d = data,
-                RegisterType::E => self.e = data,
-                RegisterType::H => self.h = data,
-                RegisterType::L => self.l = data,
-                _ => {
-                    panic!("cannot write Data8 to {}", register);
-                }
-            },
-            ValueEnum::Data16(data) => {
-                let lo = data as u8;
-                let hi = (data >> 8) as u8;
-                match register {
-                    RegisterType::AF => {
-                        self.a = hi;
-                        self.f.register = lo & 0xF0;
-                    }
-                    RegisterType::BC => {
-                        self.b = hi;
-                        self.c = lo;
-                    }
-                    RegisterType::DE => {
-                        self.d = hi;
-                        self.e = lo;
-                    }
-                    RegisterType::HL => {
-                        self.h = hi;
-                        self.l = lo;
-                    }
-                    RegisterType::PC => {
-                        self.pc = data;
-                    }
-                    RegisterType::SP => {
-                        self.sp = data;
-                    }
-                    _ => {
-                        panic!("cannot write Data16 to {}", register);
-                    }
-                }
+    pub fn get_register_16(&self, register: &RegisterType) -> u16 {
+        match register {
+            RegisterType::AF => combine(self.a, self.f.register),
+            RegisterType::BC => combine(self.b, self.c),
+            RegisterType::DE => combine(self.d, self.e),
+            RegisterType::HL => combine(self.h, self.l),
+            RegisterType::SP => self.sp,
+            RegisterType::PC => self.pc,
+            other => panic!("Invalid 16 bits register type: {:?}", other),
+        }
+    }
+
+    pub fn set_register(&mut self, register: &RegisterType, value: u8) {
+        match register {
+            RegisterType::A => self.a = value,
+            RegisterType::F => self.f.register = value,
+            RegisterType::B => self.b = value,
+            RegisterType::C => self.c = value,
+            RegisterType::D => self.d = value,
+            RegisterType::E => self.e = value,
+            RegisterType::H => self.h = value,
+            RegisterType::L => self.l = value,
+            other => panic!("Invalid 8 bits register type: {:?}", other),
+        }
+    }
+
+    pub fn set_register_16(&mut self, register: &RegisterType, value: u16) {
+        let lo = value as u8;
+        let hi = (value >> 8) as u8;
+        match register {
+            RegisterType::AF => {
+                self.a = hi;
+                self.f.register = lo & 0xF0;
             }
-            ValueEnum::SignedData8(_) | ValueEnum::None => {
-                panic!("set_register does not support signed data");
+            RegisterType::BC => {
+                self.b = hi;
+                self.c = lo;
             }
+            RegisterType::DE => {
+                self.d = hi;
+                self.e = lo;
+            }
+            RegisterType::HL => {
+                self.h = hi;
+                self.l = lo;
+            }
+            RegisterType::PC => {
+                self.pc = value;
+            }
+            RegisterType::SP => {
+                self.sp = value;
+            }
+            other => panic!("Invalid 16 bits register type: {:?}", other),
         }
     }
 }
+
+pub const REGISTERS_LOOKUP: [RegisterType; 8] = [
+    RegisterType::B,
+    RegisterType::C,
+    RegisterType::D,
+    RegisterType::E,
+    RegisterType::H,
+    RegisterType::L,
+    RegisterType::HL,
+    RegisterType::A,
+];

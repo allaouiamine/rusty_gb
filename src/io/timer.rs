@@ -1,4 +1,4 @@
-use crate::cpu::context::InterruptType;
+use crate::cpu::types::InterruptType;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Timer {
@@ -29,12 +29,13 @@ impl Timer {
             return None;
         }
 
+        // The cpu clock for gameboy is 4_194_304 Hz
         let bit_shift_count: u8 = match self.tac & 0b11 {
-            0b00 => 10,
-            0b01 => 4,
-            0b10 => 6,
-            0b11 => 8,
-            _ => unimplemented!(),
+            0b00 => 10, // 4_194_304 / 4096 = 1024 = 2^10
+            0b01 => 4,  // 4_194_304 / 262144 = 16 = 2^4
+            0b10 => 6,  // 4_194_304 / 65_536 = 64 = 2^6
+            0b11 => 8,  // 4_194_304 / 16_384 = 256 = 2^8
+            _ => panic!("Invalid tac value"),
         };
 
         let div_shifted = self.div >> bit_shift_count;
@@ -51,8 +52,9 @@ impl Timer {
         if self.tima < 0xFF {
             return None;
         }
-        self.tima = self.tma;
 
+        // When the TIMA overflows, it should be reset to TMA and an interrupt should be requested
+        self.tima = self.tma;
         return Some(InterruptType::TIMER);
     }
     pub fn timer_write(&mut self, address: u16, value: u8) {
@@ -85,7 +87,7 @@ impl Timer {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::context::InterruptType;
+    use crate::cpu::types::InterruptType;
 
     use super::Timer;
     #[test]

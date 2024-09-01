@@ -14,93 +14,40 @@ FF80	FFFE	High RAM (HRAM)
 FFFF	FFFF	Interrupt Enable register (IE)
 */
 
-use std::{thread, time::Duration};
+use std::sync::{Arc, Mutex};
 
-use crate::{cartridge::Cartridge, dma::DMA, io::IO, ppu::PPU, ram::RamContext};
+use crate::{
+    cartridge::Cartridge, cpu::types::InterruptType, dma::DMA, graphics::PPU, io::IO,
+    ram::RamContext,
+};
 
-// use crate::ram::RamContext;
+pub trait Bus: Send + Sync {
+    fn bus_read(&self, address: u16) -> u8;
+    fn bus_write(&mut self, address: u16, value: u8);
+    fn dbg_update(&mut self);
+    fn dbg_print(&self);
+    fn timer_tick(&mut self) -> Option<InterruptType>;
+    fn ppu_tick(&mut self) -> Vec<InterruptType>;
+    fn dma_tick(&mut self) -> bool;
+    fn get_video_buffer(&self) -> &Vec<u32>;
+}
 
-pub struct Bus<'a> {
-    cartridge: Cartridge<'a>,
+pub struct GbBus {
+    cartridge: Cartridge,
     ram: RamContext,
     pub io: IO,
     interrupt_enable_register: u8,
 
     pub ppu: PPU,
-
-    pub dma: DMA,
+    dma: Arc<Mutex<DMA>>,
 
     dbg_message: [u8; 1024],
     dbg_message_size: usize,
 }
 
-impl<'a> Bus<'a> {
-    pub fn new(rom_file: &'a str) -> Self {
-        println!("Starting gb emulator with rom file: {}", rom_file);
-
-        // load the cartridge
-        let cartridge = Cartridge::load(rom_file);
-
-        // initialize the RAM
-        let ram: RamContext = RamContext::new();
-
-        let io = IO::new();
-
-        let ppu = PPU::new();
-
-        let dma = DMA::new();
-
-        Self {
-            cartridge,
-            ram,
-            io,
-            interrupt_enable_register: 0,
-            ppu,
-            dma,
-            dbg_message: [0; 1024],
-            dbg_message_size: 0,
-        }
-    }
-
-    pub fn dbg_update(&mut self) {
-        if self.bus_read(0xFF02) == 0x81 {
-            self.dbg_message[self.dbg_message_size] = self.bus_read(0xFF01);
-
-            self.dbg_message_size += 1;
-
-            self.bus_write8(0xFF02, 0);
-        }
-    }
-
-    pub fn dbg_print(&self) {
-        let mut message: Vec<u8> = Vec::new();
-
-        for c in self.dbg_message {
-            if c != 0 {
-                message.push(c);
-            }
-        }
-
-        if message.len() == 0 {
-            return;
-        }
-        match String::from_utf8(message) {
-            Ok(m) => println!("DBG: {}", m),
-            Err(_) => {}
-        }
-    }
-
-    pub fn get_ie_register(&self) -> u8 {
-        self.interrupt_enable_register
-    }
-
-    fn set_ie_register(&mut self, value: u8) {
-        self.interrupt_enable_register = value;
-    }
-
-    pub fn bus_read(&self, address: u16) -> u8 {
+impl Bus for GbBus {
+    fn bus_read(&self, address: u16) -> u8 {
         if address < 0x8000 {
-            // RM data
             self.cartridge.cart_read(address)
         } else if address < 0xA000 {
             // character map data
@@ -116,34 +63,31 @@ impl<'a> Bus<'a> {
             0
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            if self.dma.dma_is_transferring() {
+            if self.dma.lock().unwrap().dma_is_transferring() {
                 0xFF
             } else {
                 self.ppu.oam_read(address)
             }
-            // unimplemented!();
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
             0
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            // LCD registers. This is a special case here because the LCD is written as part
+            // of the PPU to avoid multiple mutable borrows or mutexes.
+            self.ppu.lcd_read(address)
         } else if address < 0xFF80 {
             // IO registers
             self.io.io_read(address)
         } else if address == 0xFFFF {
             // CPU interrupt enable register (IE)
-            self.get_ie_register()
+            self.interrupt_enable_register
         } else {
             // High RAM (HRAM)
             self.ram.hram_read(address)
         }
     }
 
-    pub fn bus_read16(&self, address: u16) -> u16 {
-        let lo = self.bus_read(address) as u16;
-        let hi = self.bus_read(address + 1) as u16;
-        lo | (hi << 8)
-    }
-
-    pub fn bus_write8(&mut self, address: u16, value: u8) {
+    fn bus_write(&mut self, address: u16, value: u8) {
         if address < 0x8000 {
             // ROM data
             self.cartridge.cart_write(address, value);
@@ -160,60 +104,124 @@ impl<'a> Bus<'a> {
             // Mirror of C000~DDFF (ECHO RAM)	Nintendo says use of this area is prohibited.
         } else if address < 0xFEA0 {
             // Sprite attribute table (OAM)
-            if self.dma.dma_is_transferring() {
+            if self.dma.lock().unwrap().dma_is_transferring() {
                 return;
             }
             self.ppu.oam_write(address, value, false);
         } else if address < 0xFF00 {
             // Not Usable	Nintendo says use of this area is prohibited
-        } else if address == 0xFF46 {
-            self.dma.dma_start(value);
-            println!("DMA START");
+        } else if address >= 0xFF40 && address <= 0xFF4B {
+            // LCD registers. This is a special case here because the LCD is written as part
+            // of the PPU to avoid multiple mutable borrows or mutexes.
+            self.ppu.lcd_write(address, value)
         } else if address < 0xFF80 {
             // IO registers
             self.io.io_write(address, value)
         } else if address == 0xFFFF {
             // CPU interrupt enable register (IE)
-            self.set_ie_register(value);
+            self.interrupt_enable_register = value;
         } else {
             // High RAM (HRAM)
             self.ram.hram_write(address, value);
         }
     }
+    fn dbg_update(&mut self) {
+        if self.bus_read(0xFF02) == 0x81 {
+            self.dbg_message[self.dbg_message_size] = self.bus_read(0xFF01);
 
-    pub fn bus_write16(&mut self, address: u16, value: u16) {
-        self.bus_write8(address, value as u8);
-        self.bus_write8(address + 1, (value >> 8) as u8);
+            self.dbg_message_size += 1;
+
+            self.bus_write(0xFF02, 0);
+        }
     }
 
-    pub fn dma_tick(&mut self) -> bool {
-        if !self.dma.active {
+    fn dbg_print(&self) {
+        let mut message: Vec<u8> = Vec::new();
+
+        for c in self.dbg_message {
+            if c != 0 {
+                message.push(c);
+            }
+        }
+
+        if message.len() == 0 {
+            return;
+        }
+        match String::from_utf8(message) {
+            Ok(m) => println!("DBG: {}", m),
+            Err(_) => println!("DBG: Error parsing message"),
+        }
+    }
+
+    fn timer_tick(&mut self) -> Option<InterruptType> {
+        self.io.timer.timer_tick()
+    }
+
+    fn dma_tick(&mut self) -> bool {
+        let dma = &mut self.dma.lock().unwrap();
+        if !dma.active {
             return false;
         }
 
-        if self.dma.start_delay > 0 {
-            self.dma.start_delay -= 1;
+        if dma.start_delay > 0 {
+            dma.start_delay -= 1;
             return false;
         }
 
-        let destination_address = self.dma.byte as u16;
-        let source_address = ((self.dma.value as u16) * 0x100) + (self.dma.byte as u16);
+        let destination_address = dma.byte as u16;
+        let source_address = ((dma.value as u16) * 0x100) + (dma.byte as u16);
         let value = self.bus_read(source_address);
 
         self.ppu.oam_write(destination_address, value, true);
 
-        self.dma.byte += 1;
+        dma.byte += 1;
 
-        self.dma.active = self.dma.byte < 0xA0;
+        dma.active = dma.byte < 0xA0;
 
-        if !self.dma.dma_is_transferring() {
-            println!("DMA DONE!");
-            thread::sleep(Duration::from_secs(2));
+        if !dma.dma_is_transferring() {
             true
         } else {
             false
         }
     }
+
+    fn ppu_tick(&mut self) -> Vec<InterruptType> {
+        self.ppu.tick()
+    }
+
+    fn get_video_buffer(&self) -> &Vec<u32> {
+        &self.ppu.video_buffer
+    }
+}
+
+impl GbBus {
+    pub fn new(rom_file: String) -> Self {
+        println!("Starting gb emulator with rom file: {}", rom_file);
+
+        // load the cartridge
+        let cartridge = Cartridge::load(rom_file);
+
+        let ram: RamContext = RamContext::new();
+        let io = IO::new();
+
+        // DMA can be used directly from the bus or from the PPU/LCD
+        // Without the interior mutability of the Mutex, it would be
+        // very difficult to manage the mutable borrows of the DMA
+        let dma = Arc::new(Mutex::new(DMA::new()));
+        let ppu = PPU::new(Arc::clone(&dma));
+
+        Self {
+            cartridge,
+            ram,
+            io,
+            interrupt_enable_register: 0,
+            ppu,
+            dma,
+            dbg_message: [0; 1024],
+            dbg_message_size: 0,
+        }
+    }
+
     pub fn fetch_tile(&self, tile_number: usize) -> [u8; 16] {
         if tile_number > 384 {
             panic!("Maximum tiles supported: {}", 384);

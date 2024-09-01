@@ -1,111 +1,181 @@
 use std::fmt::Display;
+use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 
-use super::instruction::InstructionType;
-use super::instruction::Operand;
+use crate::cpu::execution_plan::FetchAction;
+use crate::cpu::execution_plan::StoreAction;
+use crate::cpu::instruction::ConditionType;
+
+use super::instruction::Instruction;
+use super::registers::CpuRegisters;
+use super::types::RegisterType;
+use super::types::ValueEnum;
 use super::CpuContext;
+
+impl Display for ValueEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        match self {
+            ValueEnum::SignedData8(_) | ValueEnum::None => panic!("Cannot display SignedData8"),
+            ValueEnum::Data8(value) => write!(f, "{:02X}", value),
+            ValueEnum::Data16(value) => write!(f, "{:04X}", value),
+        }
+    }
+}
+
+impl Display for RegisterType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let register_str = match *self {
+            Self::A => "A",
+            Self::F => "F",
+            Self::B => "B",
+            Self::C => "C",
+            Self::D => "D",
+            Self::E => "E",
+            Self::H => "H",
+            Self::L => "L",
+            Self::AF => "AF",
+            Self::BC => "BC",
+            Self::DE => "DE",
+            Self::HL => "HL",
+            Self::SP => "SP",
+            Self::PC => "PC",
+        };
+        write!(f, "{}", register_str)
+    }
+}
+
+impl Display for CpuRegisters {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        write!(
+            f,
+            "A: {:02X} F: {} BC: {:04X} DE: {:04X} HL: {:04X} SP: {:04X}",
+            self.a,
+            self.f,
+            self.get_register_16(&RegisterType::BC),
+            self.get_register_16(&RegisterType::DE),
+            self.get_register_16(&RegisterType::HL),
+            self.sp
+        )
+    }
+}
+
+impl<'a> Display for Instruction<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        write!(f, "{}", self.instruction_type)
+    }
+}
+
+impl Display for ConditionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
+        let condition_str = match *self {
+            Self::None => "",
+            Self::NZ => "NZ",
+            Self::Z => "Z",
+            Self::NC => "NC",
+            Self::C => "C",
+        };
+        write!(f, "{}", condition_str)
+    }
+}
 
 impl<'a> Display for CpuContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> FmtResult {
-        let mut pc = self.old_pc;
-
         let mut instruction_str = format!("{}", self.current_instruction);
+        let bus = self.bus.lock().unwrap();
 
-        match self.current_instruction.operand_1 {
-            Operand::None => {}
-            Operand::Register(register) => {
-                instruction_str.push_str(format!(" {}", register).as_str())
+        let operand_1 = match self.current_instruction.execution_plan.get_fetch_action() {
+            FetchAction::None | FetchAction::FetchStack => None,
+            FetchAction::FetchData | FetchAction::FetchSignedData => {
+                Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
             }
-            Operand::Indirect(register) => {
-                instruction_str.push_str(format!(" ({})", register).as_str())
+            FetchAction::FetchData16Bits => {
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
+                Some(format!("${:04X}", (lo as u16) | ((hi as u16) << 8)))
             }
-            Operand::IndirectIncrementHL => instruction_str.push_str(format!(" (HL+)").as_str()),
-            Operand::IndirectDecrementHL => instruction_str.push_str(format!(" (HL-)").as_str()),
-            Operand::D8 | Operand::R8 => {
-                pc += 1;
-                instruction_str.push_str(format!(" ${:02X}", self.bus.bus_read(pc)).as_str())
+            FetchAction::FetchAddress => {
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
+                Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
             }
-            Operand::A8Indirect => {
-                pc += 1;
-                if self.current_instruction.instruction_type == InstructionType::LDH {
-                    instruction_str.push_str(format!(" ${:02X}", self.bus.bus_read(pc)).as_str())
+            FetchAction::FetchAddressZeroPage => {
+                let lo = bus.bus_read(self.old_pc + 1);
+                Some(format!("$FF({:02X})", lo))
+            }
+            FetchAction::FetchRegister(register_type)
+            | FetchAction::FetchRegister16Bits(register_type) => Some(format!("{}", register_type)),
+            FetchAction::FetchRegister16BitsWithOffset(register_type) => {
+                if register_type == &RegisterType::PC {
+                    Some(format!("${:02X}", bus.bus_read(self.old_pc + 1)))
                 } else {
-                    instruction_str.push_str(format!(" (${:02X})", self.bus.bus_read(pc)).as_str())
+                    Some(format!(
+                        "{}+${:02X}",
+                        register_type,
+                        bus.bus_read(self.old_pc + 1)
+                    ))
                 }
             }
-            Operand::A16 | Operand::D16 => {
-                pc += 1;
-                let next_pc = self.bus.bus_read(pc);
-                pc += 1;
-                let next_next_pc = self.bus.bus_read(pc);
-                let value_u16 = (next_pc as u16) | ((next_next_pc as u16) << 8);
-                instruction_str.push_str(format!(" ${:04X}", value_u16).as_str())
+            FetchAction::FetchIndirect(register_type) => Some(format!("({})", register_type)),
+            FetchAction::FetchIndirectZeroPage(register_type) => {
+                Some(format!("({})", register_type))
             }
-            Operand::A16Indirect => {
-                pc += 1;
-                let next_pc = self.bus.bus_read(pc);
-                pc += 1;
-                let next_next_pc = self.bus.bus_read(pc);
-                let value = (next_pc as u16) | ((next_next_pc as u16) << 8);
-                instruction_str.push_str(format!(" (${:04X})", value).as_str())
+            FetchAction::FetchIndirectAndIncrement(register_type) => {
+                Some(format!("({}+)", register_type))
             }
-            Operand::SpPlusR8 => unimplemented!(),
-        }
+            FetchAction::FetchIndirectAndDecrement(register_type) => {
+                Some(format!("({}-)", register_type))
+            }
+        };
 
-        match self.current_instruction.operand_2 {
-            Operand::None => {}
-            Operand::Register(register) => {
-                instruction_str.push_str(format!(",{}", register).as_str())
-            }
-            Operand::Indirect(register) => {
-                instruction_str.push_str(format!(",({})", register).as_str())
-            }
-            Operand::IndirectIncrementHL => instruction_str.push_str(format!(",(HL+)").as_str()),
-            Operand::IndirectDecrementHL => instruction_str.push_str(format!(",(HL-)").as_str()),
-            Operand::D8 | Operand::R8 => {
-                pc += 1;
-                instruction_str.push_str(format!(",${:02X}", self.bus.bus_read(pc)).as_str())
-            }
-            Operand::A8Indirect => {
-                pc += 1;
-                if self.current_instruction.instruction_type == InstructionType::LDH {
-                    instruction_str.push_str(format!(",${:02X}", self.bus.bus_read(pc)).as_str())
+        let operand_2 = match self.current_instruction.execution_plan.get_store_action() {
+            StoreAction::None | StoreAction::StoreStack => None,
+            StoreAction::StoreRegister(register_type)
+            | StoreAction::StoreRegister16Bits(register_type) => {
+                if register_type == &RegisterType::PC {
+                    None
                 } else {
-                    instruction_str.push_str(format!(",(${:02X})", self.bus.bus_read(pc)).as_str())
+                    Some(format!("{}", register_type))
                 }
             }
-            Operand::A16 | Operand::D16 => {
-                pc += 1;
-                let next_pc = self.bus.bus_read(pc);
-                pc += 1;
-                let next_next_pc = self.bus.bus_read(pc);
-                let value_u16 = (next_pc as u16) | ((next_next_pc as u16) << 8);
-                instruction_str.push_str(format!(",${:04X}", value_u16).as_str())
+            StoreAction::StoreIndirect(register_type) => Some(format!("({})", register_type)),
+            StoreAction::StoreIndirectZeroPage(register_type) => {
+                Some(format!("({})", register_type))
             }
-            Operand::A16Indirect => {
-                pc += 1;
-                let next_pc = self.bus.bus_read(pc);
-                pc += 1;
-                let next_next_pc = self.bus.bus_read(pc);
-                let value_16 = (next_pc as u16) | ((next_next_pc as u16) << 8);
-                instruction_str.push_str(format!(",(${:04X})", value_16).as_str())
+            StoreAction::StoreIndirectAndIncrement(register_type) => {
+                Some(format!("({}+)", register_type))
             }
-            Operand::SpPlusR8 => {
-                pc += 1;
-                let value_r8 = self.bus.bus_read(pc);
-                instruction_str.push_str(format!(",SP+${:04X}", value_r8).as_str())
+            StoreAction::StoreIndirectAndDecrement(register_type) => {
+                Some(format!("({}-)", register_type))
             }
+            StoreAction::StoreAddress | StoreAction::StoreAddress16Bits => {
+                let lo = bus.bus_read(self.old_pc + 1);
+                let hi = bus.bus_read(self.old_pc + 2);
+                Some(format!("$({:04X})", (lo as u16) | ((hi as u16) << 8)))
+            }
+            StoreAction::StoreAddressZeroPage => {
+                let lo = bus.bus_read(self.old_pc + 1);
+                Some(format!("($FF{:02X})", lo))
+            }
+        };
+        if let Some(operand_2) = operand_2 {
+            instruction_str = format!("{} {}", instruction_str, operand_2);
         }
 
+        if self.current_instruction.condition != ConditionType::None {
+            instruction_str = format!("{} {}", instruction_str, self.current_instruction.condition);
+        }
+        if let Some(operand_1) = operand_1 {
+            instruction_str = format!("{} {}", instruction_str, operand_1);
+        }
         write!(
             f,
             "{:08X} - {:04X}: {:12} ({:02X} {:02X} {:02X}) {}",
-            self.ticks,
+            self.ticks / 4,
             self.old_pc,
             instruction_str,
             self.current_opcode,
-            self.bus.bus_read(self.old_pc + 1),
-            self.bus.bus_read(self.old_pc + 2),
+            bus.bus_read(self.old_pc + 1),
+            bus.bus_read(self.old_pc + 2),
             self.cpu_registers
         )
     }
